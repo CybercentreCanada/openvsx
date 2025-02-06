@@ -25,7 +25,7 @@ RUN /usr/bin/yarn --cwd webui \
   && /usr/bin/yarn --cwd webui build \
   && /usr/bin/yarn --cwd webui build:default
 
-# Main image derived from openvsx-server
-FROM ghcr.io/eclipse/openvsx-server:v0.21.1
+# Use the locally built server image instead of pulling from a registry
+FROM $(serverImageRepository):latest
 
 COPY --from=builder --chown=openvsx:openvsx /workdir/webui/static/ BOOT-INF/classes/static/
