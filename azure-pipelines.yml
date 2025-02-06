@@ -8,9 +8,9 @@ pool: cybertron-build-pool
 
 variables:
   containerRegistry: uchimera
-  imageRepository: cccs/openvsx
-  serverImageRepository: cccs/openvsx/server
-  webuiImageRepository: cccs/openvsx/webui
+  imageRepository: uchimera.azurecr.io/cccs/openvsx
+  serverImageRepository: uchimera.azurecr.io/cccs/openvsx/server
+  webuiImageRepository: uchimera.azurecr.io/cccs/openvsx/webui
   buildTimestamp: $[format('{0:yyyyMMddHHmmss}', pipeline.startTime)]
 
 steps:
@@ -29,7 +29,7 @@ steps:
       DOCKER_BUILDKIT: 1
       BUILDKIT_PROGRESS: plain
     inputs:
-      command: 'build'
+      command: 'buildAndPush'
       repository: $(serverImageRepository)
       dockerfile: 'server/Dockerfile'
       buildContext: 'server/'
@@ -41,7 +41,7 @@ steps:
       DOCKER_BUILDKIT: 1
       BUILDKIT_PROGRESS: plain
     inputs:
-      command: 'build'
+      command: 'buildAndPush'
       repository: $(webuiImageRepository)
       dockerfile: 'webui/Dockerfile'
       buildContext: 'webui/'
@@ -50,7 +50,7 @@ steps:
   - task: Docker@2
     displayName: Build complete image
     env:
-      DOCKER_BUILDKIT: 0
+      DOCKER_BUILDKIT: 1
       BUILDKIT_PROGRESS: plain
     inputs:
       command: 'build'
@@ -60,6 +60,7 @@ steps:
       tags: |
         $(BRANCH_NAME)
         $(BRANCH_NAME)_$(buildTimestamp)_b$(Build.BuildId)
+      arguments: --build-arg OPENVSX_IMAGES_TAG=$(BRANCH_NAME)_$(buildTimestamp)_b$(Build.BuildId)
   - task: Docker@2
     displayName: Tag and push complete image to $(containerRegistry)
     inputs:
