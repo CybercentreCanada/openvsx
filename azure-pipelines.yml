@@ -8,9 +8,9 @@ pool: cybertron-build-pool
 
 variables:
   containerRegistry: uchimera
-  imageRepository: uchimera.azurecr.io/cccs/openvsx
-  serverImageRepository: uchimera.azurecr.io/cccs/openvsx/server
-  webuiImageRepository: uchimera.azurecr.io/cccs/openvsx/webui
+  imageRepository: cccs/openvsx
+  serverImageRepository: cccs/openvsx/server
+  webuiImageRepository: cccs/openvsx/webui
   buildTimestamp: $[format('{0:yyyyMMddHHmmss}', pipeline.startTime)]
 
 steps:
