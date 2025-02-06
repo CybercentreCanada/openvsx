@@ -9,62 +9,56 @@
  ********************************************************************************/
 package org.eclipse.openvsx.entities;
 
+import java.io.Serial;
+import java.io.Serializable;
 import java.time.LocalDateTime;
-import java.util.List;
+import java.util.Objects;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
-import javax.persistence.OneToMany;
-import javax.persistence.Table;
-import javax.persistence.UniqueConstraint;
+import jakarta.persistence.*;
 
 import org.eclipse.openvsx.json.AccessTokenJson;
 import org.eclipse.openvsx.util.TimeUtil;
 
 @Entity
 @Table(uniqueConstraints = { @UniqueConstraint(columnNames = "value") })
-public class PersonalAccessToken {
+public class PersonalAccessToken implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
 
     @Id
-    @GeneratedValue
-    long id;
+    @GeneratedValue(generator = "personalAccessTokenSeq")
+    @SequenceGenerator(name = "personalAccessTokenSeq", sequenceName = "personal_access_token_seq")
+    private long id;
 
     @ManyToOne
     @JoinColumn(name = "user_data")
-    UserData user;
+    private UserData user;
 
     @Column(length = 64)
-    String value;
+    private String value;
 
-    boolean active;
+    private boolean active;
 
-    LocalDateTime createdTimestamp;
+    private LocalDateTime createdTimestamp;
 
-    LocalDateTime accessedTimestamp;
+    private LocalDateTime accessedTimestamp;
 
     @Column(length = 2048)
-    String description;
-
-    @OneToMany(mappedBy = "publishedWith")
-    List<ExtensionVersion> publishedVersions;
-
+    private String description;
 
     /**
      * Convert to a JSON object.
      */
     public AccessTokenJson toAccessTokenJson() {
         var json = new AccessTokenJson();
-        json.id = this.getId();
+        json.setId(this.getId());
         // The value is not included: it is displayed only when the token is created
         if (this.getCreatedTimestamp() != null)
-            json.createdTimestamp = TimeUtil.toUTCString(this.getCreatedTimestamp());
+            json.setCreatedTimestamp(TimeUtil.toUTCString(this.getCreatedTimestamp()));
         if (this.getAccessedTimestamp() != null)
-            json.accessedTimestamp = TimeUtil.toUTCString(this.getAccessedTimestamp());
-        json.description = this.getDescription();
+            json.setAccessedTimestamp(TimeUtil.toUTCString(this.getAccessedTimestamp()));
+        json.setDescription(this.getDescription());
         return json;
     }
 
@@ -124,4 +118,22 @@ public class PersonalAccessToken {
         this.description = description;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        PersonalAccessToken that = (PersonalAccessToken) o;
+        return id == that.id
+                && active == that.active
+                && Objects.equals(user, that.user)
+                && Objects.equals(value, that.value)
+                && Objects.equals(createdTimestamp, that.createdTimestamp)
+                && Objects.equals(accessedTimestamp, that.accessedTimestamp)
+                && Objects.equals(description, that.description);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, user, value, active, createdTimestamp, accessedTimestamp, description);
+    }
 }

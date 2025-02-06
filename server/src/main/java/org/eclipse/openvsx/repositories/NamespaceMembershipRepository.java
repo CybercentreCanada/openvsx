@@ -9,25 +9,21 @@
  ********************************************************************************/
 package org.eclipse.openvsx.repositories;
 
-import org.springframework.data.repository.Repository;
-import org.springframework.data.util.Streamable;
 import org.eclipse.openvsx.entities.Namespace;
 import org.eclipse.openvsx.entities.NamespaceMembership;
 import org.eclipse.openvsx.entities.UserData;
+import org.springframework.data.repository.Repository;
+import org.springframework.data.util.Streamable;
 
 public interface NamespaceMembershipRepository extends Repository<NamespaceMembership, Long> {
 
     NamespaceMembership findByUserAndNamespace(UserData user, Namespace namespace);
 
-    long countByUserAndNamespace(UserData user, Namespace namespace);
-
     Streamable<NamespaceMembership> findByNamespaceAndRoleIgnoreCase(Namespace namespace, String role);
-
-    long countByNamespaceAndRoleIgnoreCase(Namespace namespace, String role);
 
     Streamable<NamespaceMembership> findByNamespace(Namespace namespace);
 
-    Streamable<NamespaceMembership> findByUser(UserData user);
+    Streamable<NamespaceMembership> findByUserOrderByNamespaceName(UserData user);
 
-    Streamable<NamespaceMembership> findByUserAndRoleIgnoreCaseOrderByNamespaceName(UserData user, String role);
+    NamespaceMembership findFirstByNamespaceNameIgnoreCase(String namespaceName);
 }

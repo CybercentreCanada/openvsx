@@ -11,7 +11,10 @@ package org.eclipse.openvsx.util;
 
 import org.eclipse.openvsx.json.ResultJson;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+
+import java.io.Serial;
 
 /**
  * Throw this exception to reply with a JSON object of the form
@@ -24,9 +27,10 @@ import org.springframework.http.ResponseEntity;
  */
 public class ErrorResultException extends RuntimeException {
 
+    @Serial
     private static final long serialVersionUID = 147466147310091931L;
 
-    private final HttpStatus status;
+    private final HttpStatusCode status;
 
     public ErrorResultException(String message) {
         super(message);
@@ -38,12 +42,12 @@ public class ErrorResultException extends RuntimeException {
         this.status = null;
     }
 
-    public ErrorResultException(String message, HttpStatus status) {
+    public ErrorResultException(String message, HttpStatusCode status) {
         super(message);
         this.status = status;
     }
 
-    public HttpStatus getStatus() {
+    public HttpStatusCode getStatus() {
         return status;
     }
 
@@ -56,7 +60,7 @@ public class ErrorResultException extends RuntimeException {
     public <T extends ResultJson> ResponseEntity<T> toResponseEntity(Class<T> resultType) {
         try {
             var json = resultType.getDeclaredConstructor().newInstance();
-            json.error = getMessage();
+            json.setError(getMessage());
             var responseStatus = status != null ? status : HttpStatus.BAD_REQUEST;
             return new ResponseEntity<>(json, responseStatus);
         } catch (ReflectiveOperationException exc) {

@@ -8,11 +8,12 @@
  * SPDX-License-Identifier: EPL-2.0
  ********************************************************************************/
 
-import * as ReactDOM from 'react-dom';
-import * as React from 'react';
+import { createRoot } from 'react-dom/client';
+import React, { useMemo } from 'react';
+import { HelmetProvider } from 'react-helmet-async';
 import { BrowserRouter } from 'react-router-dom';
-import { ThemeProvider } from '@material-ui/styles';
-import useMediaQuery from '@material-ui/core/useMediaQuery';
+import { ThemeProvider } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import { ExtensionRegistryService } from '../extension-registry-service';
 import { Main } from '../main';
 import createPageSettings from './page-settings';
@@ -29,29 +30,46 @@ if (serverHost.startsWith('3000-')) {
 } else if (location.port === '3000') {
     // Localhost dev environment
     serverHost = serverHost + ':8080';
+} else if (serverHost.includes('che-webui')) {
+    // Eclipse Che dev environment.
+    // If serverHost contains 'che-webui', replace it with 'che-server'
+    serverHost = serverHost.replace('che-webui', 'che-server');
 }
 const service = new ExtensionRegistryService(`${location.protocol}//${serverHost}`);
 
+async function getServerVersion(): Promise<string> {
+   const abortController = new AbortController();
+   try {
+    const result = await service.getRegistryVersion(abortController);
+    return result.version;
+   } catch (error) {
+    console.error('Could not determine server version');
+    return 'unknown';
+   }
+}
+
 const App = () => {
     const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
-    const theme = React.useMemo(
+    const theme = useMemo(
         () => createDefaultTheme(prefersDarkMode ? 'dark' : 'light'),
         [prefersDarkMode],
     );
 
-    const pageSettings = createPageSettings(theme, prefersDarkMode, service.serverUrl);
-
+    const pageSettings = createPageSettings(prefersDarkMode, service.serverUrl, getServerVersion());
     return (
-        <ThemeProvider theme={theme}>
-            <Main
-                service={service}
-                pageSettings={pageSettings}
-            />
-        </ThemeProvider>
+        <HelmetProvider>
+            <ThemeProvider theme={theme}>
+                <Main
+                    service={service}
+                    pageSettings={pageSettings}
+                />
+            </ThemeProvider>
+        </HelmetProvider>
     );
 };
 
-const node = document.getElementById('main');
-ReactDOM.render(<BrowserRouter>
+const node = document.getElementById('main') as HTMLElement;
+const root = createRoot(node);
+root.render(<BrowserRouter>
     <App />
-</BrowserRouter>, node);
+</BrowserRouter>);

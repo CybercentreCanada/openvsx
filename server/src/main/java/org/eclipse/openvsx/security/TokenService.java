@@ -9,20 +9,13 @@
  ********************************************************************************/
 package org.eclipse.openvsx.security;
 
-import java.time.Instant;
-import java.util.Arrays;
-
-import javax.persistence.EntityManager;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
+import jakarta.persistence.EntityManager;
 import org.eclipse.openvsx.entities.AuthToken;
 import org.eclipse.openvsx.entities.UserData;
-import org.json.simple.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.util.Pair;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -36,19 +29,27 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.Instant;
+import java.util.Arrays;
+
 @Component
 public class TokenService {
 
     protected final Logger logger = LoggerFactory.getLogger(TokenService.class);
 
-    @Autowired
-    TransactionTemplate transactions;
+    private final TransactionTemplate transactions;
+    private final EntityManager entityManager;
+    private final ClientRegistrationRepository clientRegistrationRepository;
 
-    @Autowired
-    EntityManager entityManager;
-
-    @Autowired
-    ClientRegistrationRepository clientRegistrationRepository;
+    public TokenService(
+            TransactionTemplate transactions,
+            EntityManager entityManager,
+            ClientRegistrationRepository clientRegistrationRepository
+    ) {
+        this.transactions = transactions;
+        this.entityManager = entityManager;
+        this.clientRegistrationRepository = clientRegistrationRepository;
+    }
 
     public AuthToken updateTokens(long userId, String registrationId, OAuth2AccessToken accessToken,
             OAuth2RefreshToken refreshToken) {
@@ -62,11 +63,15 @@ public class TokenService {
                 if (accessToken == null) {
                     return updateGitHubToken(userData, null);
                 }
-                var token = new AuthToken();
-                token.accessToken = accessToken.getTokenValue();
-                token.scopes = accessToken.getScopes();
-                token.issuedAt = accessToken.getIssuedAt();
-                token.expiresAt = accessToken.getExpiresAt();
+
+                var token = new AuthToken(
+                    accessToken.getTokenValue(),
+                    accessToken.getIssuedAt(),
+                    accessToken.getExpiresAt(),
+                    accessToken.getScopes(),
+                        null,
+                        null
+                );
                 return updateGitHubToken(userData, token);
             }
 
@@ -74,27 +79,23 @@ public class TokenService {
                 if (accessToken == null) {
                     return updateEclipseToken(userData, null);
                 }
-                var token = new AuthToken();
-                token.accessToken = accessToken.getTokenValue();
-                token.scopes = accessToken.getScopes();
-                token.issuedAt = accessToken.getIssuedAt();
-                token.expiresAt = accessToken.getExpiresAt();
-                
+
+                String refresh = null;
+                Instant refreshExpiresAt = null;
                 if (refreshToken != null) {
-                    token.refreshToken = refreshToken.getTokenValue();
-                    token.refreshExpiresAt = refreshToken.getExpiresAt();
-                } else {
-                    // Request a new token to get the refresh token
-                    var tokens = refreshEclipseToken(token);
-                    if (tokens != null) {
-                        token.accessToken = tokens.getFirst().getTokenValue();
-                        token.scopes = tokens.getFirst().getScopes();
-                        token.issuedAt = tokens.getFirst().getIssuedAt();
-                        token.expiresAt = tokens.getFirst().getExpiresAt();
-                        token.refreshToken = tokens.getSecond().getTokenValue();
-                        token.refreshExpiresAt = tokens.getSecond().getExpiresAt();
-                    }
+                    refresh = refreshToken.getTokenValue();
+                    refreshExpiresAt = refreshToken.getExpiresAt();
                 }
+
+                var token = new AuthToken(
+                        accessToken.getTokenValue(),
+                        accessToken.getIssuedAt(),
+                        accessToken.getExpiresAt(),
+                        accessToken.getScopes(),
+                        refresh,
+                        refreshExpiresAt
+                );
+
                 return updateEclipseToken(userData, token);
             }
         }
@@ -125,16 +126,15 @@ public class TokenService {
 
             case "eclipse": {
                 var token = userData.getEclipseToken();
-                if (token != null && isExpired(token.expiresAt)) {
+                if (token != null && isExpired(token.expiresAt())) {
                     OAuth2AccessToken newAccessToken = null;
                     OAuth2RefreshToken newRefreshToken = null;
-                    if (!isExpired(token.refreshExpiresAt)) {
-                        var newTokens = refreshEclipseToken(token);
-                        if (newTokens != null) {
-                            newAccessToken = newTokens.getFirst();
-                            newRefreshToken = newTokens.getSecond();
-                        }
+                    var newTokens = refreshEclipseToken(token);
+                    if (newTokens != null) {
+                        newAccessToken = newTokens.getFirst();
+                        newRefreshToken = newTokens.getSecond();
                     }
+
                     return updateTokens(userData.getId(), "eclipse", newAccessToken, newRefreshToken);
                 }
                 return token;
@@ -144,21 +144,15 @@ public class TokenService {
         return null;
     }
 
-    public boolean isUsable(AuthToken token) {
-        if (token == null)
-            return false;
-        if (token.accessToken != null && !isExpired(token.expiresAt))
-            return true;
-        if (token.refreshToken != null && !isExpired(token.refreshExpiresAt))
-            return true;
-        return false;
-    }
-
     private boolean isExpired(Instant instant) {
         return instant != null && Instant.now().isAfter(instant);
     }
 
     protected Pair<OAuth2AccessToken, OAuth2RefreshToken> refreshEclipseToken(AuthToken token) {
+        if(token.refreshToken() == null || isExpired(token.refreshExpiresAt())) {
+            return null;
+        }
+
         var reg = clientRegistrationRepository.findByRegistrationId("eclipse");
         var tokenUri = reg.getProviderDetails().getTokenUri();
 
@@ -166,16 +160,16 @@ public class TokenService {
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
 
-        var data = new JsonObject();
-        data.put("grant_type", "refresh_token");
-        data.put("client_id", reg.getClientId());
-        data.put("client_secret", reg.getClientSecret());
-        data.put("refresh_token", token.refreshToken != null ? token.refreshToken : token.accessToken);
-
-        var request = new HttpEntity<String>(data.toJson(), headers);
-        var restTemplate = new RestTemplate();
         var objectMapper = new ObjectMapper();
+        var data = objectMapper.createObjectNode()
+                .put("grant_type", "refresh_token")
+                .put("client_id", reg.getClientId())
+                .put("client_secret", reg.getClientSecret())
+                .put("refresh_token", token.refreshToken());
+
         try {
+            var request = new HttpEntity<>(objectMapper.writeValueAsString(data), headers);
+            var restTemplate = new RestTemplate();
             var response = restTemplate.postForObject(tokenUri, request, String.class);
             var root = objectMapper.readTree(response);
             var newTokenValue = root.get("access_token").asText();
@@ -188,7 +182,6 @@ public class TokenService {
             var newToken = new OAuth2AccessToken(TokenType.BEARER, newTokenValue, issuedAt, expiresAt);
             var newRefreshToken = new OAuth2RefreshToken(newRefreshTokenValue, issuedAt);
             return Pair.of(newToken, newRefreshToken);
-
         } catch (RestClientException exc) {
             logger.error("Post request failed with URL: " + tokenUri, exc);
         } catch (JsonProcessingException exc) {

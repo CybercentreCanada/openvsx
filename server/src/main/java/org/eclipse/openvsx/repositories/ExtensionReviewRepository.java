@@ -9,12 +9,15 @@
  ********************************************************************************/
 package org.eclipse.openvsx.repositories;
 
-import org.springframework.data.repository.Repository;
-import org.springframework.data.util.Streamable;
-
 import org.eclipse.openvsx.entities.Extension;
 import org.eclipse.openvsx.entities.ExtensionReview;
 import org.eclipse.openvsx.entities.UserData;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.Repository;
+import org.springframework.data.util.Streamable;
+
+import static org.eclipse.openvsx.cache.CacheService.CACHE_AVERAGE_REVIEW_RATING;
 
 public interface ExtensionReviewRepository extends Repository<ExtensionReview, Long> {
 
@@ -26,4 +29,10 @@ public interface ExtensionReviewRepository extends Repository<ExtensionReview, L
 
     long countByExtensionAndActiveTrue(Extension extension);
 
+    @Cacheable(CACHE_AVERAGE_REVIEW_RATING)
+    @Query("select coalesce(avg(r.rating),0) from ExtensionReview r where r.active = true")
+    double averageRatingAndActiveTrue();
+
+    @Query("select avg(r.rating) from ExtensionReview r where r.active = true and r.extension = ?1")
+    Double averageRatingAndActiveTrue(Extension extension);
 }

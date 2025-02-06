@@ -137,14 +137,83 @@ export function setCookie(cookie: Cookie): void {
     document.cookie = cookieString;
 }
 
-const cookieRegexp = /(?<key>[^ \t=]+)\s*=\s*(?<value>[^;]+)(?:;|$)/g;
-
 export function getCookieValueByKey(key: string): string | undefined {
-    const matches = document.cookie.matchAll(cookieRegexp);
-    for (const match of matches) {
-        if (match[1] === key) {
-            return decodeURIComponent(match[2]);
-        }
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${key}=`);
+    if (parts.length === 2) {
+        const value = parts[1].split(';')[0];
+        return decodeURIComponent(value);
     }
+
     return undefined;
+}
+
+namespace TargetPlatform {
+    export const WIN32_IA32 = 'win32-ia32';
+    export const WIN32_X64 = 'win32-x64';
+    export const WIN32_ARM64 = 'win32-arm64';
+    export const LINUX_X64 = 'linux-x64';
+    export const LINUX_ARM64 = 'linux-arm64';
+    export const LINUX_ARMHF = 'linux-armhf';
+    export const ALPINE_X64 = 'alpine-x64';
+    export const ALPINE_ARM64 = 'alpine-arm64';
+    export const DARWIN_X64 = 'darwin-x64';
+    export const DARWIN_ARM64 = 'darwin-arm64';
+    export const WEB = 'web';
+    export const UNIVERSAL = 'universal';
+}
+
+export function getTargetPlatforms(): string[] {
+    return [
+        TargetPlatform.WIN32_IA32,
+        TargetPlatform.WIN32_X64,
+        TargetPlatform.WIN32_ARM64,
+        TargetPlatform.LINUX_X64,
+        TargetPlatform.LINUX_ARM64,
+        TargetPlatform.LINUX_ARMHF,
+        TargetPlatform.ALPINE_X64,
+        TargetPlatform.ALPINE_ARM64,
+        TargetPlatform.DARWIN_X64,
+        TargetPlatform.DARWIN_ARM64,
+        TargetPlatform.WEB,
+        TargetPlatform.UNIVERSAL
+    ];
+}
+
+export function getTargetPlatformDisplayName(targetPlatform: string): string {
+    const targetPlatformDisplayNames = new Map([
+        [TargetPlatform.UNIVERSAL, 'Universal'],
+        [TargetPlatform.WIN32_IA32, 'Windows x86'],
+        [TargetPlatform.WIN32_X64, 'Windows x64'],
+        [TargetPlatform.WIN32_ARM64, 'Windows ARM'],
+        [TargetPlatform.LINUX_X64, 'Linux x64'],
+        [TargetPlatform.LINUX_ARM64, 'Linux ARM64'],
+        [TargetPlatform.LINUX_ARMHF, 'Linux ARMhf'],
+        [TargetPlatform.ALPINE_X64, 'Alpine Linux 64 bit'],
+        [TargetPlatform.ALPINE_ARM64, 'Alpine Linux ARM64'],
+        [TargetPlatform.DARWIN_X64, 'macOS Intel'],
+        [TargetPlatform.DARWIN_ARM64, 'macOS Apple Silicon'],
+        [TargetPlatform.WEB, 'Web']
+    ]);
+
+    return targetPlatformDisplayNames.get(targetPlatform) ?? '';
+}
+
+export function getEngineDisplayName(engine: string): string {
+    const engineDisplayNames = new Map([
+        ['vscode', 'VS Code'],
+        ['node', 'Node.js'],
+        ['npm', 'npm'],
+        ['pnpm', 'pnpm'],
+        ['yarn', 'Yarn'],
+        ['vsce', 'vsce'],
+        ['sqlops', 'SQL Operation Studio'],
+        ['azdata', 'Azure Data Studio'],
+        ['theiaPlugin', 'Theia Plugin'],
+        ['opensumi', 'OpenSumi'],
+        ['nadako.vshaxe', 'nadako.vshaxe'],
+        ['hbenl.vscode-test-explorer', 'hbenl.vscode-test-explorer'],
+    ]);
+
+    return engineDisplayNames.get(engine) ?? '';
 }

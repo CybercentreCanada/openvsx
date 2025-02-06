@@ -9,49 +9,54 @@
  ********************************************************************************/
 package org.eclipse.openvsx.entities;
 
-import javax.persistence.Basic;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-import javax.persistence.OneToOne;
+import jakarta.persistence.*;
+
+import java.io.Serial;
+import java.io.Serializable;
 
 @Entity
-public class FileResource {
+public class FileResource implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
 
     // Resource types
     public static final String DOWNLOAD = "download";
+    public static final String DOWNLOAD_SHA256 = "sha256";
+    public static final String DOWNLOAD_SIG = "signature";
+    public static final String PUBLIC_KEY = "publicKey";
     public static final String MANIFEST = "manifest";
     public static final String ICON = "icon";
     public static final String README = "readme";
     public static final String LICENSE = "license";
     public static final String CHANGELOG = "changelog";
-    public static final String WEB_RESOURCE = "web-resource";
+    public static final String RESOURCE = "resource";
+    public static final String VSIXMANIFEST = "vsixmanifest";
 
     // Storage types
-    public static final String STORAGE_DB = "database";
+    public static final String STORAGE_LOCAL = "local";
     public static final String STORAGE_GOOGLE = "google-cloud";
     public static final String STORAGE_AZURE = "azure-blob";
+    public static final String STORAGE_AWS = "aws";
 
     @Id
-    @GeneratedValue
-    long id;
+    @GeneratedValue(generator = "fileResourceSeq")
+    @SequenceGenerator(name = "fileResourceSeq", sequenceName = "file_resource_seq")
+    private long id;
 
     @OneToOne
-    ExtensionVersion extension;
+    private ExtensionVersion extension;
 
-    String name;
+    private String name;
 
     @Column(length = 32)
-    String type;
+    private String type;
 
     @Basic(fetch = FetchType.LAZY)
-    byte[] content;
+    private byte[] content;
 
     @Column(length = 32)
-    String storageType;
-
+    private String storageType;
 
     public long getId() {
         return id;
@@ -85,13 +90,14 @@ public class FileResource {
         this.type = type;
     }
 
-	public byte[] getContent() {
-		return content;
-	}
+    @Deprecated
+    public byte[] getContent() {
+        return content;
+    }
 
-	public void setContent(byte[] content) {
-		this.content = content;
-	}
+    public void clearContent() {
+        this.content = null;
+    }
 
     public String getStorageType() {
         return storageType;
@@ -100,5 +106,4 @@ public class FileResource {
     public void setStorageType(String storageType) {
         this.storageType = storageType;
     }
-    
 }

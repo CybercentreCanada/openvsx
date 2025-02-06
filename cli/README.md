@@ -39,10 +39,24 @@ You can use `ovsx` for downloading extensions from an Open VSX instance. Extensi
 
 Variants:
  * `ovsx get <extension>`
-   downloads an extension and saves it in a file as specified in its download URL (usually in the format `namespace.extension-version.vsix`) in the current working directory.
+   downloads an extension and saves it to a file as specified in its download URL in the current working directory. This is usually in the format `namespace.extension-version.vsix`. For [target platform specific extensions](https://code.visualstudio.com/api/working-with-extensions/publishing-extension#platformspecific-extensions) (e.g. `linux-x64`) the format is `namespace.extension-version@target.vsix`.
  * `ovsx get <extension> -o <path>`
    downloads an extension and saves it in the specified file or directory.
  * `ovsx get <extension> --metadata`
    downloads the JSON metadata of an extension and prints it to the standard output.
  * `ovsx get <extension> --metadata -o <path>`
    downloads the JSON metadata of an extension and saves it in the specified file or directory.
+
+### Store Access Tokens
+
+The `login` command lets you store an access token for a namespace.
+
+ * `ovsx login <name>`
+   the name must correspond to the `publisher` of your extension. `ovsx` will ask you to provide an access token.
+
+The `logout` command lets you remove a stored access token.
+
+ * `ovsx logout <name>`
+   the name must correspond to the `publisher` of your extension.
+
+By default `ovsx` will try to use a `keytar` store with a plaintext file store as fallback. You can specify the environment variable `OVSX_STORE=file` to use the file store.

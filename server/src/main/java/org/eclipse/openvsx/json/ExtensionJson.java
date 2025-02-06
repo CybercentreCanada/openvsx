@@ -9,145 +9,637 @@
  ********************************************************************************/
 package org.eclipse.openvsx.json;
 
+import java.io.Serial;
+import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
-import javax.validation.constraints.Min;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
 
-@ApiModel(
-    value = "Extension",
+import static org.eclipse.openvsx.util.TargetPlatform.*;
+import static org.eclipse.openvsx.util.TargetPlatform.NAME_UNIVERSAL;
+
+@Schema(
+    name = "Extension",
     description = "Metadata of an extension"
 )
 @JsonInclude(Include.NON_NULL)
-public class ExtensionJson extends ResultJson {
+public class ExtensionJson extends ResultJson implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
 
     public static ExtensionJson error(String message) {
         var info = new ExtensionJson();
-        info.error = message;
+        info.setError(message);
         return info;
     }
 
-    @ApiModelProperty("URL to get metadata of the extension's namespace")
+    @Schema(description = "URL to get metadata of the extension's namespace")
     @NotNull
-    public String namespaceUrl;
+    private String namespaceUrl;
 
-    @ApiModelProperty("URL to get the list of reviews of this extension")
+    @Schema(description = "URL to get the list of reviews of this extension")
     @NotNull
-    public String reviewsUrl;
+    private String reviewsUrl;
 
-    @ApiModelProperty("Map of file types (download, manifest, icon, readme, license, changelog) to their respective URLs")
-    public Map<String, String> files;
+    @Schema(description = "Map of file types (download, manifest, icon, readme, license, changelog) to their respective URLs")
+    private Map<String, String> files;
 
-    @ApiModelProperty("Name of the extension")
+    @Schema(description = "Name of the extension")
     @NotNull
-    public String name;
+    private String name;
 
-    @ApiModelProperty("Namespace of the extension")
+    @Schema(description = "Namespace of the extension")
     @NotNull
-    public String namespace;
+    private String namespace;
 
-    @ApiModelProperty("Selected version, or the latest version if none was specified")
+    @Schema(description = "Name of the target platform", allowableValues = {
+            NAME_WIN32_X64, NAME_WIN32_IA32, NAME_WIN32_ARM64,
+            NAME_LINUX_X64, NAME_LINUX_ARM64, NAME_LINUX_ARMHF,
+            NAME_ALPINE_X64, NAME_ALPINE_ARM64,
+            NAME_DARWIN_X64, NAME_DARWIN_ARM64,
+            NAME_WEB, NAME_UNIVERSAL
+    })
+    private String targetPlatform;
+
+    @Schema(description = "Selected version, or the latest version if none was specified")
     @NotNull
-    public String version;
+    private String version;
 
-    @ApiModelProperty("Data of the user who published this version")
+    @Schema(description = "Indicates whether this is a pre-release version")
+    private Boolean preRelease;
+
+    @Schema(description = "Data of the user who published this version")
     @NotNull
-    public UserJson publishedBy;
+    private UserJson publishedBy;
 
-    @ApiModelProperty(hidden = true)
-    public Boolean active;
+    @Schema(hidden = true)
+    private Boolean active;
 
-    @ApiModelProperty("The value 'true' means the publishing user is a member of the extension's namespace and the namespace has at least one owner.")
+    @Schema(description = "The value 'true' means the publishing user is a privileged user or the publishing user is a member of the extension's namespace and the namespace has at least one owner.")
     @NotNull
-    public Boolean verified;
+    private Boolean verified;
 
-    @ApiModelProperty("Deprecated: use 'verified' instead (this property is just the negation of 'verified')")
+    @Schema(description = "Deprecated: use 'verified' instead (this property is just the negation of 'verified')")
     @NotNull
     @Deprecated
-    public Boolean unrelatedPublisher;
+    private Boolean unrelatedPublisher;
 
-    @ApiModelProperty(value = "Access level of the extension's namespace. Deprecated: namespaces are now always restricted", allowableValues = "public,restricted")
+    @Schema(description = "Access level of the extension's namespace. Deprecated: namespaces are now always restricted", allowableValues = {"public", "restricted"})
     @NotNull
     @Deprecated
-    public String namespaceAccess;
+    private String namespaceAccess;
 
-    @ApiModelProperty("Map of available versions to their metadata URLs")
-    public Map<String, String> allVersions;
+    @Schema(description = "Map of available versions to their metadata URLs. Deprecated: only returns the last 100 versions. Use allVersionsUrl instead.")
+    @Deprecated
+    private Map<String, String> allVersions;
 
-    @ApiModelProperty(value = "Average rating", allowableValues = "range[0,5]")
-    public Double averageRating;
+    @Schema(description = "URL to get a map of available versions to their metadata URLs.")
+    private String allVersionsUrl;
 
-    @ApiModelProperty("Number of downloads of the extension package")
+    @Schema(description = "Average rating")
     @Min(0)
-    public Integer downloadCount;
+    @Max(5)
+    private Double averageRating;
 
-    @ApiModelProperty("Number of reviews")
+    @Schema(description = "Number of downloads of the extension package")
     @Min(0)
-    public Long reviewCount;
+    private Integer downloadCount;
 
-    @ApiModelProperty("Available version aliases ('latest' or 'preview')")
-    public List<String> versionAlias;
+    @Schema(description = "Number of reviews")
+    @Min(0)
+    private Long reviewCount;
 
-    @ApiModelProperty("Date and time when this version was published (ISO-8601)")
+    @Schema(description = "Available version aliases ('latest' or 'pre-release')")
+    private List<String> versionAlias;
+
+    @Schema(description = "Date and time when this version was published (ISO-8601)")
     @NotNull
-    public String timestamp;
+    private String timestamp;
 
-    @ApiModelProperty("Indicates whether this is a preview version")
-    public Boolean preview;
+    @Schema(description = "Indicates whether this is a preview extension")
+    private Boolean preview;
 
-    @ApiModelProperty("Name to be displayed in user interfaces")
-    public String displayName;
+    @Schema(description = "Name to be displayed in user interfaces")
+    private String displayName;
 
-    public String description;
+    @Schema(description = "Namespace name to be displayed in user interfaces")
+    @NotNull
+    private String namespaceDisplayName;
 
-    @ApiModelProperty("Map of engine names to the respective version constraints")
-    public Map<String, String> engines;
+    private String description;
 
-    public List<String> categories;
+    @Schema(description = "Map of engine names to the respective version constraints")
+    private Map<String, String> engines;
 
-    @ApiModelProperty("A list that indicates where the extension should run in remote configurations. Values are \"ui\" (run locally), \"workspace\" (run on remote machine) and \"web\"")
-    public List<String> extensionKind;
+    private List<String> categories;
 
-    public List<String> tags;
+    @Schema(description = "A list that indicates where the extension should run in remote configurations. Values are \"ui\" (run locally), \"workspace\" (run on remote machine) and \"web\"")
+    private List<String> extensionKind;
 
-    @ApiModelProperty("License identifier")
-    public String license;
+    private List<String> tags;
 
-    @ApiModelProperty("URL of the extension's homepage")
-    public String homepage;
+    @Schema(description = "License identifier")
+    private String license;
 
-    @ApiModelProperty("URL of the extension's source repository")
-    public String repository;
+    @Schema(description = "URL of the extension's homepage")
+    private String homepage;
 
-    @ApiModelProperty("URL of the extension's bug tracker")
-    public String bugs;
+    @Schema(description = "URL of the extension's source repository")
+    private String repository;
 
-    @ApiModelProperty(value = "Markdown rendering engine to use in user interfaces", allowableValues = "standard,github")
-    public String markdown;
+    @Schema(description = "URL to sponsor the extension")
+    private String sponsorLink;
 
-    @ApiModelProperty("CSS color to use as background in user interfaces")
-    public String galleryColor;
+    @Schema(description = "URL of the extension's bug tracker")
+    private String bugs;
 
-    @ApiModelProperty(value = "Theme type for user interfaces", allowableValues = "light,dark")
-    public String galleryTheme;
+    @Schema(description = "Markdown rendering engine to use in user interfaces", allowableValues = {"standard", "github"})
+    private String markdown;
 
-    @ApiModelProperty("URL of the extension's Q&A page")
-    public String qna;
+    @Schema(description = "CSS color to use as background in user interfaces")
+    private String galleryColor;
 
-    @ApiModelProperty("List of badges to display in user interfaces")
-    public List<BadgeJson> badges;
+    @Schema(description = "Theme type for user interfaces", allowableValues = {"light", "dark"})
+    private String galleryTheme;
 
-    @ApiModelProperty("List of dependencies to other extensions")
-    public List<ExtensionReferenceJson> dependencies;
+    @Schema(description = "Languages the extension has been translated in")
+    private List<String> localizedLanguages;
 
-    @ApiModelProperty("List of extensions bundled with this extension")
-    public List<ExtensionReferenceJson> bundledExtensions;
+    @Schema(description = "URL of the extension's Q&A page")
+    private String qna;
 
+    @Schema(description = "List of badges to display in user interfaces")
+    private List<BadgeJson> badges;
+
+    @Schema(description = "List of dependencies to other extensions")
+    private List<ExtensionReferenceJson> dependencies;
+
+    @Schema(description = "List of extensions bundled with this extension")
+    private List<ExtensionReferenceJson> bundledExtensions;
+
+    @Schema(description = "Map of download links by target platform")
+    private Map<String, String> downloads;
+
+    @Schema(description = "Map of target platforms by extension version")
+    private List<VersionTargetPlatformsJson> allTargetPlatformVersions;
+
+    @Schema(description = "version metadata URL")
+    private String url;
+
+    @Schema(description = "Indicates whether the extension is deprecated")
+    private boolean deprecated;
+
+    @Schema(description = "Reference to extension that replaces this extension when it's deprecated")
+    private ExtensionReplacementJson replacement;
+
+    @Schema(description = "Whether to show downloads in user interfaces")
+    private boolean downloadable;
+
+    public String getNamespaceUrl() {
+        return namespaceUrl;
+    }
+
+    public void setNamespaceUrl(String namespaceUrl) {
+        this.namespaceUrl = namespaceUrl;
+    }
+
+    public String getReviewsUrl() {
+        return reviewsUrl;
+    }
+
+    public void setReviewsUrl(String reviewsUrl) {
+        this.reviewsUrl = reviewsUrl;
+    }
+
+    public Map<String, String> getFiles() {
+        return files;
+    }
+
+    public void setFiles(Map<String, String> files) {
+        this.files = files;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getNamespace() {
+        return namespace;
+    }
+
+    public void setNamespace(String namespace) {
+        this.namespace = namespace;
+    }
+
+    public String getTargetPlatform() {
+        return targetPlatform;
+    }
+
+    public void setTargetPlatform(String targetPlatform) {
+        this.targetPlatform = targetPlatform;
+    }
+
+    public String getVersion() {
+        return version;
+    }
+
+    public void setVersion(String version) {
+        this.version = version;
+    }
+
+    public Boolean getPreRelease() {
+        return preRelease;
+    }
+
+    public void setPreRelease(Boolean preRelease) {
+        this.preRelease = preRelease;
+    }
+
+    public UserJson getPublishedBy() {
+        return publishedBy;
+    }
+
+    public void setPublishedBy(UserJson publishedBy) {
+        this.publishedBy = publishedBy;
+    }
+
+    public Boolean getActive() {
+        return active;
+    }
+
+    public void setActive(Boolean active) {
+        this.active = active;
+    }
+
+    public Boolean getVerified() {
+        return verified;
+    }
+
+    public void setVerified(Boolean verified) {
+        this.verified = verified;
+    }
+
+    public Boolean getUnrelatedPublisher() {
+        return unrelatedPublisher;
+    }
+
+    public void setUnrelatedPublisher(Boolean unrelatedPublisher) {
+        this.unrelatedPublisher = unrelatedPublisher;
+    }
+
+    public String getNamespaceAccess() {
+        return namespaceAccess;
+    }
+
+    public void setNamespaceAccess(String namespaceAccess) {
+        this.namespaceAccess = namespaceAccess;
+    }
+
+    public Map<String, String> getAllVersions() {
+        return allVersions;
+    }
+
+    public void setAllVersions(Map<String, String> allVersions) {
+        this.allVersions = allVersions;
+    }
+
+    public String getAllVersionsUrl() {
+        return allVersionsUrl;
+    }
+
+    public void setAllVersionsUrl(String allVersionsUrl) {
+        this.allVersionsUrl = allVersionsUrl;
+    }
+
+    public Double getAverageRating() {
+        return averageRating;
+    }
+
+    public void setAverageRating(Double averageRating) {
+        this.averageRating = averageRating;
+    }
+
+    public Integer getDownloadCount() {
+        return downloadCount;
+    }
+
+    public void setDownloadCount(Integer downloadCount) {
+        this.downloadCount = downloadCount;
+    }
+
+    public Long getReviewCount() {
+        return reviewCount;
+    }
+
+    public void setReviewCount(Long reviewCount) {
+        this.reviewCount = reviewCount;
+    }
+
+    public List<String> getVersionAlias() {
+        return versionAlias;
+    }
+
+    public void setVersionAlias(List<String> versionAlias) {
+        this.versionAlias = versionAlias;
+    }
+
+    public String getTimestamp() {
+        return timestamp;
+    }
+
+    public void setTimestamp(String timestamp) {
+        this.timestamp = timestamp;
+    }
+
+    public Boolean getPreview() {
+        return preview;
+    }
+
+    public void setPreview(Boolean preview) {
+        this.preview = preview;
+    }
+
+    public String getDisplayName() {
+        return displayName;
+    }
+
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
+    }
+
+    public String getNamespaceDisplayName() {
+        return namespaceDisplayName;
+    }
+
+    public void setNamespaceDisplayName(String namespaceDisplayName) {
+        this.namespaceDisplayName = namespaceDisplayName;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public Map<String, String> getEngines() {
+        return engines;
+    }
+
+    public void setEngines(Map<String, String> engines) {
+        this.engines = engines;
+    }
+
+    public List<String> getCategories() {
+        return categories;
+    }
+
+    public void setCategories(List<String> categories) {
+        this.categories = categories;
+    }
+
+    public List<String> getExtensionKind() {
+        return extensionKind;
+    }
+
+    public void setExtensionKind(List<String> extensionKind) {
+        this.extensionKind = extensionKind;
+    }
+
+    public List<String> getTags() {
+        return tags;
+    }
+
+    public void setTags(List<String> tags) {
+        this.tags = tags;
+    }
+
+    public String getLicense() {
+        return license;
+    }
+
+    public void setLicense(String license) {
+        this.license = license;
+    }
+
+    public String getHomepage() {
+        return homepage;
+    }
+
+    public void setHomepage(String homepage) {
+        this.homepage = homepage;
+    }
+
+    public String getRepository() {
+        return repository;
+    }
+
+    public void setRepository(String repository) {
+        this.repository = repository;
+    }
+
+    public String getSponsorLink() {
+        return sponsorLink;
+    }
+
+    public void setSponsorLink(String sponsorLink) {
+        this.sponsorLink = sponsorLink;
+    }
+
+    public String getBugs() {
+        return bugs;
+    }
+
+    public void setBugs(String bugs) {
+        this.bugs = bugs;
+    }
+
+    public String getMarkdown() {
+        return markdown;
+    }
+
+    public void setMarkdown(String markdown) {
+        this.markdown = markdown;
+    }
+
+    public String getGalleryColor() {
+        return galleryColor;
+    }
+
+    public void setGalleryColor(String galleryColor) {
+        this.galleryColor = galleryColor;
+    }
+
+    public String getGalleryTheme() {
+        return galleryTheme;
+    }
+
+    public void setGalleryTheme(String galleryTheme) {
+        this.galleryTheme = galleryTheme;
+    }
+
+    public List<String> getLocalizedLanguages() {
+        return localizedLanguages;
+    }
+
+    public void setLocalizedLanguages(List<String> localizedLanguages) {
+        this.localizedLanguages = localizedLanguages;
+    }
+
+    public String getQna() {
+        return qna;
+    }
+
+    public void setQna(String qna) {
+        this.qna = qna;
+    }
+
+    public List<BadgeJson> getBadges() {
+        return badges;
+    }
+
+    public void setBadges(List<BadgeJson> badges) {
+        this.badges = badges;
+    }
+
+    public List<ExtensionReferenceJson> getDependencies() {
+        return dependencies;
+    }
+
+    public void setDependencies(List<ExtensionReferenceJson> dependencies) {
+        this.dependencies = dependencies;
+    }
+
+    public List<ExtensionReferenceJson> getBundledExtensions() {
+        return bundledExtensions;
+    }
+
+    public void setBundledExtensions(List<ExtensionReferenceJson> bundledExtensions) {
+        this.bundledExtensions = bundledExtensions;
+    }
+
+    public Map<String, String> getDownloads() {
+        return downloads;
+    }
+
+    public void setDownloads(Map<String, String> downloads) {
+        this.downloads = downloads;
+    }
+
+    public List<VersionTargetPlatformsJson> getAllTargetPlatformVersions() {
+        return allTargetPlatformVersions;
+    }
+
+    public void setAllTargetPlatformVersions(List<VersionTargetPlatformsJson> allTargetPlatformVersions) {
+        this.allTargetPlatformVersions = allTargetPlatformVersions;
+    }
+
+    public String getUrl() {
+        return url;
+    }
+
+    public void setUrl(String url) {
+        this.url = url;
+    }
+
+    public boolean isDeprecated() {
+        return deprecated;
+    }
+
+    public void setDeprecated(boolean deprecated) {
+        this.deprecated = deprecated;
+    }
+
+    public ExtensionReplacementJson getReplacement() {
+        return replacement;
+    }
+
+    public void setReplacement(ExtensionReplacementJson replacement) {
+        this.replacement = replacement;
+    }
+
+    public boolean isDownloadable() {
+        return downloadable;
+    }
+
+    public void setDownloadable(boolean downloadable) {
+        this.downloadable = downloadable;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        ExtensionJson that = (ExtensionJson) o;
+        return Objects.equals(namespaceUrl, that.namespaceUrl)
+                && Objects.equals(reviewsUrl, that.reviewsUrl)
+                && Objects.equals(files, that.files)
+                && Objects.equals(name, that.name)
+                && Objects.equals(namespace, that.namespace)
+                && Objects.equals(targetPlatform, that.targetPlatform)
+                && Objects.equals(version, that.version)
+                && Objects.equals(preRelease, that.preRelease)
+                && Objects.equals(publishedBy, that.publishedBy)
+                && Objects.equals(active, that.active)
+                && Objects.equals(verified, that.verified)
+                && Objects.equals(unrelatedPublisher, that.unrelatedPublisher)
+                && Objects.equals(namespaceAccess, that.namespaceAccess)
+                && Objects.equals(allVersions, that.allVersions)
+                && Objects.equals(allVersionsUrl, that.allVersionsUrl)
+                && Objects.equals(averageRating, that.averageRating)
+                && Objects.equals(downloadCount, that.downloadCount)
+                && Objects.equals(reviewCount, that.reviewCount)
+                && Objects.equals(versionAlias, that.versionAlias)
+                && Objects.equals(timestamp, that.timestamp)
+                && Objects.equals(preview, that.preview)
+                && Objects.equals(displayName, that.displayName)
+                && Objects.equals(description, that.description)
+                && Objects.equals(engines, that.engines)
+                && Objects.equals(categories, that.categories)
+                && Objects.equals(extensionKind, that.extensionKind)
+                && Objects.equals(tags, that.tags)
+                && Objects.equals(license, that.license)
+                && Objects.equals(homepage, that.homepage)
+                && Objects.equals(repository, that.repository)
+                && Objects.equals(bugs, that.bugs)
+                && Objects.equals(markdown, that.markdown)
+                && Objects.equals(galleryColor, that.galleryColor)
+                && Objects.equals(galleryTheme, that.galleryTheme)
+                && Objects.equals(qna, that.qna)
+                && Objects.equals(badges, that.badges)
+                && Objects.equals(dependencies, that.dependencies)
+                && Objects.equals(bundledExtensions, that.bundledExtensions)
+                && Objects.equals(downloads, that.downloads)
+                && Objects.equals(allTargetPlatformVersions, that.allTargetPlatformVersions)
+                && Objects.equals(url, that.url)
+                && Objects.equals(deprecated, that.deprecated)
+                && Objects.equals(replacement, that.replacement)
+                && Objects.equals(downloadable, that.downloadable);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                namespaceUrl, reviewsUrl, files, name, namespace, targetPlatform, version, preRelease, publishedBy,
+                active, verified, unrelatedPublisher, namespaceAccess, allVersions, allVersionsUrl, averageRating,
+                downloadCount, reviewCount, versionAlias, timestamp, preview, displayName, description, engines, categories,
+                extensionKind, tags, license, homepage, repository, bugs, markdown, galleryColor, galleryTheme, qna, badges,
+                dependencies, bundledExtensions, downloads, allTargetPlatformVersions, url, deprecated, replacement, downloadable
+        );
+    }
 }

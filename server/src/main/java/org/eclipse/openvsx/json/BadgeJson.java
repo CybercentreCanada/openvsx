@@ -12,22 +12,66 @@ package org.eclipse.openvsx.json;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;;
+import io.swagger.v3.oas.annotations.media.Schema;
 
-@ApiModel(
-    value = "Badge",
+import java.io.Serial;
+import java.io.Serializable;
+import java.util.Objects;
+
+@Schema(
+    name = "Badge",
     description = "A badge to be shown in the sidebar of the extension page in the registry"
 )
 @JsonInclude(Include.NON_NULL)
-public class BadgeJson {
+public class BadgeJson implements Serializable {
 
-    @ApiModelProperty("Image URL of the badge")
-    public String url;
+    @Serial
+    private static final long serialVersionUID = 1L;
 
-    @ApiModelProperty("The link users will follow when clicking the badge")
-    public String href;
+    @Schema(description = "Image URL of the badge")
+    private String url;
 
-    public String description;
+    @Schema(description = "The link users will follow when clicking the badge")
+    private String href;
 
+    private String description;
+
+    public String getUrl() {
+        return url;
+    }
+
+    public void setUrl(String url) {
+        this.url = url;
+    }
+
+    public String getHref() {
+        return href;
+    }
+
+    public void setHref(String href) {
+        this.href = href;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        BadgeJson badgeJson = (BadgeJson) o;
+        return Objects.equals(url, badgeJson.url)
+                && Objects.equals(href, badgeJson.href)
+                && Objects.equals(description, badgeJson.description);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(url, href, description);
+    }
 }

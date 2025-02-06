@@ -9,40 +9,55 @@
  ********************************************************************************/
 package org.eclipse.openvsx;
 
+import org.eclipse.openvsx.entities.ExtensionVersion;
+import org.eclipse.openvsx.util.TargetPlatform;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.eclipse.openvsx.entities.ExtensionVersion;
-import org.junit.jupiter.api.Test;
+@ExtendWith(SpringExtension.class)
+class ExtensionValidatorTest {
 
-public class ExtensionValidatorTest {
+    @Autowired
+    ExtensionValidator validator;
 
     @Test
-    public void testInvalidVersion1() {
-        var validator = new ExtensionValidator();
-        var extension = new ExtensionVersion();
-        extension.setVersion("latest");
-        var issues = validator.validateMetadata(extension);
-        assertThat(issues).hasSize(1);
-        assertThat(issues.get(0))
+    void testInvalidVersion1() {
+        var issue = validator.validateExtensionVersion("latest");
+        assertThat(issue).isPresent();
+        assertThat(issue.get())
                 .isEqualTo(new ExtensionValidator.Issue("The version string 'latest' is reserved."));
     }
 
     @Test
-    public void testInvalidVersion2() {
-        var validator = new ExtensionValidator();
-        var extension = new ExtensionVersion();
-        extension.setVersion("1/2");
-        var issues = validator.validateMetadata(extension);
-        assertThat(issues).hasSize(1);
-        assertThat(issues.get(0))
-                .isEqualTo(new ExtensionValidator.Issue("Invalid character '/' found in version (index 1)."));
+    void testInvalidVersion2() {
+        var issue = validator.validateExtensionVersion("1/2");
+        assertThat(issue).isPresent();
+        assertThat(issue.get())
+                .isEqualTo(new ExtensionValidator.Issue("Invalid semantic version. See https://semver.org/."));
     }
 
     @Test
-    public void testInvalidURL() {
-        var validator = new ExtensionValidator();
+    void testInvalidTargetPlatform() {
         var extension = new ExtensionVersion();
-        extension.setVersion("1");
+        extension.setTargetPlatform("debian-x64");
+        extension.setVersion("1.0.0");
+        var issues = validator.validateMetadata(extension);
+        assertThat(issues).hasSize(1);
+        assertThat(issues.get(0))
+                .isEqualTo(new ExtensionValidator.Issue("Unsupported target platform 'debian-x64'"));
+    }
+
+    @Test
+    void testInvalidURL() {
+        var extension = new ExtensionVersion();
+        extension.setTargetPlatform(TargetPlatform.NAME_UNIVERSAL);
+        extension.setVersion("1.0.0");
         extension.setRepository("Foo and bar!");
         var issues = validator.validateMetadata(extension);
         assertThat(issues).hasSize(1);
@@ -51,13 +66,54 @@ public class ExtensionValidatorTest {
     }
 
     @Test
-    public void testGitProtocol() {
-        var validator = new ExtensionValidator();
+    void testInvalidURL2() {
         var extension = new ExtensionVersion();
-        extension.setVersion("1");
+        extension.setTargetPlatform(TargetPlatform.NAME_UNIVERSAL);
+        extension.setVersion("1.0.0");
+        extension.setRepository("https://");
+        var issues = validator.validateMetadata(extension);
+        assertThat(issues).hasSize(1);
+        assertThat(issues.get(0))
+                .isEqualTo(new ExtensionValidator.Issue("Invalid URL in field 'repository': https://"));
+    }
+
+    @Test
+    void testInvalidURL3() {
+        var extension = new ExtensionVersion();
+        extension.setTargetPlatform(TargetPlatform.NAME_UNIVERSAL);
+        extension.setVersion("1.0.0");
+        extension.setRepository("http://");
+        var issues = validator.validateMetadata(extension);
+        assertThat(issues).hasSize(1);
+        assertThat(issues.get(0))
+                .isEqualTo(new ExtensionValidator.Issue("Invalid URL in field 'repository': http://"));
+    }
+
+    @Test
+    void testMailtoURL() {
+        var extension = new ExtensionVersion();
+        extension.setTargetPlatform(TargetPlatform.NAME_UNIVERSAL);
+        extension.setVersion("1.0.0");
+        extension.setRepository("mailto:foo@bar.net");
+        var issues = validator.validateMetadata(extension);
+        assertThat(issues).isEmpty();
+    }
+
+    @Test
+    void testGitProtocol() {
+        var extension = new ExtensionVersion();
+        extension.setTargetPlatform(TargetPlatform.NAME_UNIVERSAL);
+        extension.setVersion("1.0.0");
         extension.setRepository("git+https://github.com/Foo/Bar.git");
         var issues = validator.validateMetadata(extension);
         assertThat(issues).isEmpty();
     }
-    
+
+    @TestConfiguration
+    static class TestConfig {
+        @Bean
+        ExtensionValidator extensionValidator() {
+            return new ExtensionValidator();
+        }
+    }
 }

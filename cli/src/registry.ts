@@ -9,7 +9,6 @@
  ********************************************************************************/
 
 import * as http from 'http';
-import * as https from 'https';
 import * as fs from 'fs';
 import * as querystring from 'querystring';
 import * as followRedirects from 'follow-redirects';
@@ -28,14 +27,14 @@ export class Registry {
     readonly password?: string;
 
     constructor(options: RegistryOptions = {}) {
-        if (options.registryUrl && options.registryUrl.endsWith('/'))
+        if (options.registryUrl?.endsWith('/'))
             this.url = options.registryUrl.substring(0, options.registryUrl.length - 1);
         else if (options.registryUrl)
             this.url = options.registryUrl;
         else
             this.url = DEFAULT_URL;
-        this.maxNamespaceSize = options.maxNamespaceSize || DEFAULT_NAMESPACE_SIZE;
-        this.maxPublishSize = options.maxPublishSize || DEFAULT_PUBLISH_SIZE;
+        this.maxNamespaceSize = options.maxNamespaceSize ?? DEFAULT_NAMESPACE_SIZE;
+        this.maxPublishSize = options.maxPublishSize ?? DEFAULT_PUBLISH_SIZE;
         this.username = options.username;
         this.password = options.password;
     }
@@ -58,6 +57,15 @@ export class Registry {
         }
     }
 
+    verifyPat(namespace: string, pat: string): Promise<Response> {
+      try {
+          const query: { [key: string]: string } = { token: pat };
+          return this.getJson(this.getUrl(`api/${namespace}/verify-pat`, query));
+      } catch (err) {
+          return Promise.reject(err);
+      }
+    }
+
     publish(file: string, pat: string): Promise<Extension> {
         try {
             const query: { [key: string]: string } = { token: pat };
@@ -70,9 +78,12 @@ export class Registry {
         }
     }
 
-    getMetadata(namespace: string, extension: string): Promise<Extension> {
+    getMetadata(namespace: string, extension: string, target?: string): Promise<Extension> {
         try {
-            const path = `api/${encodeURIComponent(namespace)}/${encodeURIComponent(extension)}`;
+            let path = `api/${encodeURIComponent(namespace)}/${encodeURIComponent(extension)}`;
+            if (target) {
+                path += `/${encodeURIComponent(target)}`;
+            }
             return this.getJson(this.getUrl(path));
         } catch (err) {
             return Promise.reject(err);
@@ -155,10 +166,7 @@ export class Registry {
     }
 
     private getProtocol(url: URL) {
-        if (url.protocol === 'https:')
-            return followRedirects.https as typeof https;
-        else
-            return followRedirects.http as typeof http;
+        return url.protocol === 'https:' ? followRedirects.https : followRedirects.http;
     }
 
     private getRequestOptions(method?: string, headers?: http.OutgoingHttpHeaders, maxBodyLength?: number): http.RequestOptions {
@@ -178,7 +186,7 @@ export class Registry {
 
     private getJsonResponse<T extends Response>(resolve: (value: T) => void, reject: (reason: any) => void): (res: http.IncomingMessage) => void {
         return response => {
-            response.setEncoding('UTF-8');
+            response.setEncoding('utf-8');
             let json = '';
             response.on('data', chunk => json += chunk);
             response.on('end', () => {
@@ -240,6 +248,7 @@ export interface RegistryOptions {
 
 export interface Response {
     success?: string;
+    warning?: string;
     error?: string;
 }
 
@@ -252,6 +261,7 @@ export interface Extension extends Response {
     name: string;
     namespace: string;
     version: string;
+    targetPlatform: string;
     publishedBy: UserData;
     verified: boolean;
     // key: version, value: url

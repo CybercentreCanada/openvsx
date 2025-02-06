@@ -9,39 +9,31 @@
  ********************************************************************************/
 package org.eclipse.openvsx;
 
+import org.apache.commons.lang3.StringUtils;
+import org.eclipse.openvsx.entities.ExtensionVersion;
+import org.eclipse.openvsx.entities.SemanticVersion;
+import org.eclipse.openvsx.json.NamespaceDetailsJson;
+import org.eclipse.openvsx.util.TargetPlatform;
+import org.eclipse.openvsx.util.VersionAlias;
+import org.springframework.stereotype.Component;
+
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
-import com.google.common.base.Strings;
-
-import org.eclipse.openvsx.entities.ExtensionVersion;
-import org.springframework.stereotype.Component;
-
 @Component
 public class ExtensionValidator {
 
-    private final static List<String> MARKDOWN_VALUES = Arrays.asList(new String[] {
-        "github", "standard"
-    });
+    private final static List<String> MARKDOWN_VALUES = List.of("github", "standard");
 
-    private final static List<String> GALLERY_THEME_VALUES = Arrays.asList(new String[] {
-        "dark", "light"
-    });
+    private final static List<String> GALLERY_THEME_VALUES = List.of("dark", "light");
 
-    private final static List<String> QNA_VALUES = Arrays.asList(new String[] {
-        "marketplace", "false"
-    });
-
-    private final static List<Character> VERSION_CHARS = Arrays.asList(new Character[] {
-        '$', '+', '-', ',', '.', ':', ';', '_'
-    });
+    private final static List<String> QNA_VALUES = List.of("marketplace", "false");
 
     private final static int DEFAULT_STRING_SIZE = 255;
     private final static int DESCRIPTION_SIZE = 2048;
@@ -50,38 +42,80 @@ public class ExtensionValidator {
     private final Pattern namePattern = Pattern.compile("[\\w\\-\\+\\$~]+");
 
     public Optional<Issue> validateNamespace(String namespace) {
-        if (Strings.isNullOrEmpty(namespace) || namespace.equals("-")) {
+        if (StringUtils.isEmpty(namespace) || namespace.equals("-")) {
             return Optional.of(new Issue("Namespace name must not be empty."));
         }
         if (!namePattern.matcher(namespace).matches()) {
             return Optional.of(new Issue("Invalid namespace name: " + namespace));
         }
         if (namespace.length() > DEFAULT_STRING_SIZE) {
-            return Optional.of(new Issue("The namespace name exceeds the current limit of " + DEFAULT_STRING_SIZE + " characters."));
+            return Optional.of(new Issue(charactersExceededMessage("namespace name", DEFAULT_STRING_SIZE)));
         }
         return Optional.empty();
     }
 
+    private void validateDisplayName(String displayName, int limit, List<Issue> issues) {
+        var field = "displayName";
+        checkCharacters(displayName, field, issues);
+        checkFieldSize(displayName, limit, field, issues);
+    }
+
+    private void validateDescription(String description, int limit, List<Issue> issues) {
+        var field = "description";
+        checkCharacters(description, field, issues);
+        checkFieldSize(description, limit, field, issues);
+    }
+
+    public List<Issue> validateNamespaceDetails(NamespaceDetailsJson json) {
+        var issues = new ArrayList<Issue>();
+        validateDisplayName(json.getDisplayName(), 32, issues);
+        validateDescription(json.getDescription(), DEFAULT_STRING_SIZE, issues);
+        checkURL(json.getWebsite(), "website", issues);
+        checkURL(json.getSupportLink(), "supportLink", issues);
+
+        var githubLink = json.getSocialLinks().get("github");
+        if(githubLink != null && !githubLink.matches("https:\\/\\/github\\.com\\/[^\\/]+")) {
+            issues.add(new Issue("Invalid GitHub URL"));
+        }
+        var linkedinLink = json.getSocialLinks().get("linkedin");
+        if(linkedinLink != null && !linkedinLink.matches("https:\\/\\/www\\.linkedin\\.com\\/(company|in)\\/[^\\/]+")) {
+            issues.add(new Issue("Invalid LinkedIn URL"));
+        }
+        var twitterLink = json.getSocialLinks().get("twitter");
+        if(twitterLink != null && !twitterLink.matches("https:\\/\\/twitter\\.com\\/[^\\/]+")) {
+            issues.add(new Issue("Invalid Twitter URL"));
+        }
+
+        return issues;
+    }
+
     public Optional<Issue> validateExtensionName(String name) {
-        if (Strings.isNullOrEmpty(name)) {
+        if (StringUtils.isEmpty(name)) {
             return Optional.of(new Issue("Name must not be empty."));
         }
         if (!namePattern.matcher(name).matches()) {
             return Optional.of(new Issue("Invalid extension name: " + name));
         }
         if (name.length() > DEFAULT_STRING_SIZE) {
-            return Optional.of(new Issue("The extension name exceeds the current limit of " + DEFAULT_STRING_SIZE + " characters."));
+            return Optional.of(new Issue(charactersExceededMessage("extension name", DEFAULT_STRING_SIZE)));
         }
         return Optional.empty();
+    }
+
+    public Optional<Issue> validateExtensionVersion(String version) {
+        var issues = new ArrayList<Issue>();
+        checkVersion(version, issues);
+        return issues.isEmpty()
+                ? Optional.empty()
+                : Optional.of(issues.get(0));
     }
 
     public List<Issue> validateMetadata(ExtensionVersion extVersion) {
         var issues = new ArrayList<Issue>();
         checkVersion(extVersion.getVersion(), issues);
-        checkCharacters(extVersion.getDisplayName(), "displayName", issues);
-        checkFieldSize(extVersion.getDisplayName(), DEFAULT_STRING_SIZE, "displayName", issues);
-        checkCharacters(extVersion.getDescription(), "description", issues);
-        checkFieldSize(extVersion.getDescription(), DESCRIPTION_SIZE, "description", issues);
+        checkTargetPlatform(extVersion.getTargetPlatform(), issues);
+        validateDisplayName(extVersion.getDisplayName(), DEFAULT_STRING_SIZE, issues);
+        validateDescription(extVersion.getDescription(), DESCRIPTION_SIZE, issues);
         checkCharacters(extVersion.getCategories(), "categories", issues);
         checkFieldSize(extVersion.getCategories(), DEFAULT_STRING_SIZE, "categories", issues);
         checkCharacters(extVersion.getTags(), "keywords", issues);
@@ -100,26 +134,32 @@ public class ExtensionValidator {
         checkFieldSize(extVersion.getGalleryColor(), GALLERY_COLOR_SIZE, "galleryBanner.color", issues);
         checkInvalid(extVersion.getGalleryTheme(), s -> !GALLERY_THEME_VALUES.contains(s), "galleryBanner.theme", issues,
                 GALLERY_THEME_VALUES.toString());
-        checkInvalid(extVersion.getQna(), s -> !QNA_VALUES.contains(s) && !isURL(s), "qna", issues,
+        checkFieldSize(extVersion.getLocalizedLanguages(), DEFAULT_STRING_SIZE, "localizedLanguages", issues);
+        checkInvalid(extVersion.getQna(), s -> !QNA_VALUES.contains(s) && isInvalidURL(s), "qna", issues,
                 QNA_VALUES.toString() + " or a URL");
         checkFieldSize(extVersion.getQna(), DEFAULT_STRING_SIZE, "qna", issues);
         return issues;
     }
 
     private void checkVersion(String version, List<Issue> issues) {
-        if (Strings.isNullOrEmpty(version)) {
+        if (StringUtils.isEmpty(version)) {
             issues.add(new Issue("Version must not be empty."));
             return;
         }
-        if (version.equals("latest") || version.equals("preview") || version.equals("reviews")) {
+        if (version.equals(VersionAlias.LATEST) || version.equals(VersionAlias.PRE_RELEASE) || version.equals("reviews")) {
             issues.add(new Issue("The version string '" + version + "' is reserved."));
         }
-        for (var i = 0; i < version.length(); i++) {
-            var c = version.charAt(i);
-            if (!(Character.isLetterOrDigit(c) || VERSION_CHARS.contains(c))) {
-                issues.add(new Issue("Invalid character '" + c + "' found in version (index " + i + ")."));
-                return;
-            }
+
+        try {
+            SemanticVersion.parse(version);
+        } catch (RuntimeException e) {
+            issues.add(new Issue(e.getMessage()));
+        }
+    }
+
+    private void checkTargetPlatform(String targetPlatform, List<Issue> issues) {
+        if(!TargetPlatform.isValid(targetPlatform)) {
+            issues.add(new Issue("Unsupported target platform '" + targetPlatform + "'"));
         }
     }
 
@@ -149,8 +189,12 @@ public class ExtensionValidator {
 
     private void checkFieldSize(String value, int limit, String field, List<Issue> issues) {
         if (value != null && value.length() > limit) {
-            issues.add(new Issue("The field '" + field + "' exceeds the current limit of " + limit + " characters."));
+            issues.add(new Issue(charactersExceededMessage("field '" + field + "'", limit)));
         }
+    }
+
+    private String charactersExceededMessage(String name, int limit) {
+        return "The " + name + " exceeds the current limit of " + limit + " characters.";
     }
 
     private void checkFieldSize(List<String> values, int limit, String field, List<Issue> issues) {
@@ -163,7 +207,7 @@ public class ExtensionValidator {
     }
 
     private void checkInvalid(String value, Predicate<String> isInvalid, String field, List<Issue> issues, String allowedValues) {
-        if (Strings.isNullOrEmpty(value)) {
+        if (StringUtils.isEmpty(value)) {
             return;
         }
         if (isInvalid.test(value)) {
@@ -173,29 +217,27 @@ public class ExtensionValidator {
     }
 
     private void checkURL(String value, String field, List<Issue> issues) {
-        if (Strings.isNullOrEmpty(value)) {
+        if (StringUtils.isEmpty(value)) {
             return;
         }
-        if (!isURL(value)) {
+        if (isInvalidURL(value)) {
             issues.add(new Issue("Invalid URL in field '" + field + "': " + value));
         }
     }
 
-    private boolean isURL(String value) {
-        if (Strings.isNullOrEmpty(value)) {
-            return false;
-        }
-        try {
-            if (value.startsWith("git+") && value.length() > 4)
-                new URL(value.substring(4));
-            else
-                new URL(value);
+    private boolean isInvalidURL(String value) {
+        if (StringUtils.isEmpty(value))
             return true;
+        if (value.startsWith("git+") && value.length() > 4)
+            value = value.substring(4);
+        
+        try {
+            var url = new URL(value);
+            return url.getProtocol().matches("http(s)?") && StringUtils.isEmpty(url.getHost());
         } catch (MalformedURLException exc) {
-            return false;
+            return true;
         }
     }
-
 
     public static class Issue {
 
@@ -206,18 +248,16 @@ public class ExtensionValidator {
         }
 
         @Override
-        public boolean equals(Object obj) {
-            if (!(obj instanceof Issue))
-                return false;
-            var other = (Issue) obj;
-            if (!Objects.equals(this.message, other.message))
-                return false;
-            return true;
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            Issue issue = (Issue) o;
+            return Objects.equals(message, issue.message);
         }
 
         @Override
         public int hashCode() {
-            return message.hashCode();
+            return Objects.hash(message);
         }
 
         @Override

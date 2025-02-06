@@ -8,152 +8,184 @@
  * SPDX-License-Identifier: EPL-2.0
  ********************************************************************************/
 
-import React, { FunctionComponent, useState, useEffect } from 'react';
-import { Extension, VERSION_ALIASES } from '../../extension-registry-types';
-import { Grid, makeStyles, Typography, FormControl, FormGroup, FormControlLabel, Checkbox } from '@material-ui/core';
+import React, { ChangeEvent, FunctionComponent, useContext, useState, useEffect, useRef } from 'react';
+import { Extension, TargetPlatformVersion, VERSION_ALIASES } from '../../extension-registry-types';
+import { Box, Grid, Typography, FormControl, FormGroup, FormControlLabel, Checkbox } from '@mui/material';
+import WarningIcon from '@mui/icons-material/Warning';
 import { ExtensionRemoveDialog } from './extension-remove-dialog';
+import { getTargetPlatformDisplayName } from '../../utils';
+import { MainContext } from '../../context';
 
-const useStyles = makeStyles((theme) => ({
-    extensionLogo: {
-        height: '7.5rem',
-        maxWidth: '9rem',
-    },
-    description: {
-        overflow: 'hidden',
-        textOverflow: 'ellipsis'
-    },
-    code: {
-        fontFamily: 'Monaco, monospace'
-    },
-    titleRow: {
-        fontWeight: 'bold'
-    },
-    extensionContainer: {
-        height: '100%'
-    },
-    versionsContainer: {
-        flex: '1'
-    }
-}));
-
-export const ExtensionVersionContainer: FunctionComponent<ExtensionVersionContainer.Props> = props => {
+export const ExtensionVersionContainer: FunctionComponent<ExtensionVersionContainerProps> = props => {
+    const WILDCARD = '*';
     const { extension } = props;
-    const classes = useStyles();
+    const { service } = useContext(MainContext);
+    const abortController = useRef<AbortController>(new AbortController());
 
-    const getVersions = () => {
-        const versionMap = new Map<string, boolean>();
-        Object.keys(extension.allVersions)
-            .filter(version => VERSION_ALIASES.indexOf(version) < 0)
-            .forEach(version => {
-            versionMap.set(version, false);
-        });
+    const getTargetPlatformVersions = () => {
+        const versionMap: TargetPlatformVersion[] = [];
+        versionMap.push({ targetPlatform: WILDCARD, version: WILDCARD, checked: false });
+        if (extension.allTargetPlatformVersions != null) {
+            extension.allTargetPlatformVersions
+                .filter(i => VERSION_ALIASES.indexOf(i.version) < 0)
+                .forEach(i => {
+                    const { version, targetPlatforms } = i;
+                    versionMap.push({ targetPlatform: WILDCARD, version, checked: false });
+                    targetPlatforms.forEach(targetPlatform => versionMap.push({ targetPlatform, version, checked: false }));
+                });
+        }
+
         return versionMap;
     };
 
-    const [versions, setVersions] = useState(getVersions());
-    const [allChecked, setAllChecked] = useState(false);
-
     useEffect(() => {
-        setVersions(getVersions());
+        return () => {
+            abortController.current.abort();
+        };
+    }, []);
+
+    const [targetPlatformVersions, setTargetPlatformVersions] = useState(getTargetPlatformVersions());
+    const [icon, setIcon] = useState<string | undefined>(undefined);
+    useEffect(() => {
+        if (icon) {
+            URL.revokeObjectURL(icon);
+        }
+
+        service.getExtensionIcon(abortController.current, props.extension).then(setIcon);
+        setTargetPlatformVersions(getTargetPlatformVersions());
     }, [props.extension]);
 
-    const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const newVersionMap = new Map<string, boolean>();
-        let newAllChecked = true;
-        versions.forEach((checked, version) => {
-            if (version === event.target.name) {
-                checked = event.target.checked;
-            }
-            newVersionMap.set(version, checked);
-            if (!checked) {
-                newAllChecked = false;
-            }
-        });
-        setVersions(newVersionMap);
-        setAllChecked(newAllChecked);
-    };
+    const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
+        const newTargetPlatformVersions: TargetPlatformVersion[] = [];
+        targetPlatformVersions.forEach((targetPlatformVersion) => {
+            const equals = (change: string, current: string) => {
+                return change === WILDCARD || current === change;
+            };
 
-    const handleChangeAll = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const newVersionMap = new Map<string, boolean>();
-        const newAllChecked = event.target.checked;
-        versions.forEach((_, version) => {
-            newVersionMap.set(version, newAllChecked);
-        });
-        setAllChecked(newAllChecked);
-        setVersions(newVersionMap);
-    };
+            const [changedTarget, changedVersion] = event.target.name.split('/');
+            if (equals(changedVersion, targetPlatformVersion.version) && equals(changedTarget, targetPlatformVersion.targetPlatform)) {
+                targetPlatformVersion.checked = event.target.checked;
+            }
 
-    return <>
-        <Grid container direction='column' className={classes.extensionContainer}>
-            <Grid item container>
-                {
-                    extension.files.icon ?
-                        <Grid item xs={12} md={4}>
-                            <img src={extension.files.icon}
-                                className={classes.extensionLogo}
-                                alt={extension.displayName || extension.name} />
-                        </Grid>
-                        : ''
+            newTargetPlatformVersions.push(targetPlatformVersion);
+        });
+
+        const newVersionsMap = new Map<string, boolean>();
+        newTargetPlatformVersions.forEach((targetPlatformVersion) => {
+            if (targetPlatformVersion.version !== WILDCARD && targetPlatformVersion.targetPlatform !== WILDCARD) {
+                let checked = newVersionsMap.get(targetPlatformVersion.version);
+                if (checked === undefined) {
+                    checked = true;
                 }
-                <Grid item container xs={12} md={8}>
-                    <Grid item container direction='column' justify='center'>
-                        <Grid item>
-                            <Typography variant='h5' className={classes.titleRow}>
-                                {extension.displayName || extension.name}
-                            </Typography>
+
+                newVersionsMap.set(targetPlatformVersion.version, checked && targetPlatformVersion.checked);
+            }
+        });
+
+        newVersionsMap.forEach((checked, version) => {
+            const targetVersion = newTargetPlatformVersions.find(t => t.version === version && t.targetPlatform === WILDCARD);
+            targetVersion!.checked = checked;
+        });
+
+        const checkedCount = Array.from(newTargetPlatformVersions).filter(t => t.checked === true).length;
+        if (checkedCount < newTargetPlatformVersions.length) {
+            const allChecked = checkedCount === newTargetPlatformVersions.length - 1;
+            const allVersions = newTargetPlatformVersions.find(t => t.version === WILDCARD && t.targetPlatform === WILDCARD);
+            allVersions!.checked = allChecked;
+        }
+
+        setTargetPlatformVersions(newTargetPlatformVersions);
+    };
+
+    return <Grid container direction='column' sx={{ height: '100%' }}>
+        <Grid item container sx={{ filter: extension.deprecated ? 'grayscale(100%)' : null }}>
+            {
+                icon ?
+                    <Grid item xs={12} md={4}>
+                        <Box
+                            component='img'
+                            src={icon}
+                            alt={extension.displayName || extension.name}
+                            sx={{
+                                height: '7.5rem',
+                                maxWidth: '9rem'
+                            }}
+                        />
+                    </Grid>
+                    : ''
+            }
+            <Grid item container xs={12} md={8}>
+                <Grid item container direction='column' justifyContent='center'>
+                    <Grid item>
+                        <Typography variant='h5' sx={{ fontWeight: 'bold' }}>
+                            {extension.displayName || extension.name}
+                        </Typography>
+                    </Grid>
+                    {extension.deprecated &&
+                        <Grid item container direction='row'>
+                            <Grid item>
+                                <WarningIcon fontSize='small' />
+                            </Grid>
+                            <Grid item>
+                                <Typography>&nbsp;This extension has been deprecated.</Typography>
+                            </Grid>
                         </Grid>
-                        <Grid item>
-                            <Typography className={classes.code}>{extension.namespace}.{extension.name}</Typography>
-                        </Grid>
-                        <Grid item>
-                            <Typography classes={{ root: classes.description }}>{extension.description}</Typography>
-                        </Grid>
+                    }
+                    <Grid item>
+                        <Typography sx={{ fontFamily: 'Monaco, monospace' }}>{extension.namespace}.{extension.name}</Typography>
+                    </Grid>
+                    <Grid item>
+                        <Typography sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{extension.description}</Typography>
                     </Grid>
                 </Grid>
             </Grid>
-            <Grid item container className={classes.versionsContainer}>
-                <Grid item xs={12} md={4}></Grid>
-                <Grid item container xs={12} md={8} direction='column'>
-                    <FormControl component='fieldset'>
-                        <FormGroup>
-                            <FormControlLabel
-                                control={<Checkbox checked={allChecked} onChange={handleChangeAll} name='checkAll' />}
-                                label='All Versions'
-                            />
-                            {
-                                Array.from(versions.entries())
-                                    .map(([version, checked], index) =>
-                                    <FormControlLabel
-                                        key={`${version}_${index}`}
-                                        control={<Checkbox checked={checked} onChange={handleChange} name={version} />}
-                                        label={version} />
-                                )
-                            }
-                        </FormGroup>
-                    </FormControl>
-                </Grid>
-            </Grid>
-            <Grid item container>
-                <Grid item xs={12} md={4}>
-                </Grid>
-                <Grid item container xs={12} md={8}>
-                    <ExtensionRemoveDialog
-                        onUpdate={props.onUpdate}
-                        extension={extension}
-                        removeAll={allChecked}
-                        versions={
-                            Array.from(versions.entries())
-                                .filter(([_, checked]) => checked)
-                                .map(([version]) => version)} />
-                </Grid>
+        </Grid>
+        <Grid item container sx={{ flex: 1 }}>
+            <Grid item xs={12} md={4}></Grid>
+            <Grid item container xs={12} md={8} direction='column'>
+                <FormControl component='fieldset'>
+                    <FormGroup>
+                        {
+                            targetPlatformVersions.map((targetPlatformVersion, index) => {
+                                let label: string;
+                                let indent: number;
+                                if (targetPlatformVersion.version === WILDCARD && targetPlatformVersion.targetPlatform === WILDCARD) {
+                                    label = 'All Versions';
+                                    indent = 0;
+                                } else if (targetPlatformVersion.targetPlatform === WILDCARD) {
+                                    label = targetPlatformVersion.version;
+                                    indent = 4;
+                                } else {
+                                    label = getTargetPlatformDisplayName(targetPlatformVersion.targetPlatform);
+                                    indent = 8;
+                                }
+
+                                const name = `${targetPlatformVersion.targetPlatform}/${targetPlatformVersion.version}`;
+                                return <FormControlLabel
+                                    sx={{ pl: indent }}
+                                    key={`${name}_${index}`}
+                                    control={<Checkbox checked={targetPlatformVersion.checked} onChange={handleChange} name={name} />}
+                                    label={label} />;
+                            })
+                        }
+                    </FormGroup>
+                </FormControl>
             </Grid>
         </Grid>
-    </>;
+        <Grid item container>
+            <Grid item xs={12} md={4}>
+            </Grid>
+            <Grid item container xs={12} md={8}>
+                <ExtensionRemoveDialog
+                    onUpdate={props.onUpdate}
+                    extension={extension}
+                    targetPlatformVersions={targetPlatformVersions.filter((targetPlatformVersion) => targetPlatformVersion.checked)} />
+            </Grid>
+        </Grid>
+    </Grid>;
 };
 
-export namespace ExtensionVersionContainer {
-    export interface Props {
-        extension: Extension;
-        onUpdate: () => void;
-    }
+export interface ExtensionVersionContainerProps {
+    extension: Extension;
+    onUpdate: () => void;
 }

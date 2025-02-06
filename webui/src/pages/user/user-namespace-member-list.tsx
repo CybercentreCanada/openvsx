@@ -8,40 +8,29 @@
  * SPDX-License-Identifier: EPL-2.0
  ********************************************************************************/
 
-import React, { FunctionComponent, useEffect, useState, useContext } from 'react';
-import { Box, Typography, Button, Paper, makeStyles } from '@material-ui/core';
+import React, { FunctionComponent, useEffect, useState, useContext, useRef } from 'react';
+import { Box, Typography, Button, Paper } from '@mui/material';
 import { UserNamespaceMember } from './user-namespace-member-component';
 import { Namespace, NamespaceMembership, MembershipRole, isError, UserData } from '../../extension-registry-types';
 import { AddMemberDialog } from './add-namespace-member-dialog';
 import { MainContext } from '../../context';
 
-const useStyles = makeStyles((theme) => ({
-    addButton: {
-        [theme.breakpoints.down('md')]: {
-            marginLeft: theme.spacing(2)
-        }
-    },
-    memberListHeader: {
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: theme.spacing(1),
-        [theme.breakpoints.down('sm')]: {
-            flexDirection: 'column',
-            alignItems: 'center'
-        }
-    }
-}));
-
-export const UserNamespaceMemberList: FunctionComponent<UserNamespaceMemberList.Props> = props => {
-    const classes = useStyles();
+export const UserNamespaceMemberList: FunctionComponent<UserNamespaceMemberListProps> = props => {
     const { service, user, handleError } = useContext(MainContext);
     const [members, setMembers] = useState<NamespaceMembership[]>([]);
+    const [addDialogIsOpen, setAddDialogIsOpen] = useState(false);
+    const abortController = useRef<AbortController>(new AbortController());
+
     useEffect(() => {
         fetchMembers();
     }, [props.namespace]);
 
-    const [addDialogIsOpen, setAddDialogIsOpen] = useState(false);
+    useEffect(() => {
+        return () => {
+            abortController.current.abort();
+        };
+    }, []);
+
     const handleCloseAddDialog = async () => {
         setAddDialogIsOpen(false);
         fetchMembers();
@@ -52,7 +41,7 @@ export const UserNamespaceMemberList: FunctionComponent<UserNamespaceMemberList.
 
     const fetchMembers = async () => {
         try {
-            const membershipList = await service.getNamespaceMembers(props.namespace);
+            const membershipList = await service.getNamespaceMembers(abortController.current, props.namespace);
             const members = membershipList.namespaceMemberships;
             setMembers(members);
         } catch (err) {
@@ -64,7 +53,7 @@ export const UserNamespaceMemberList: FunctionComponent<UserNamespaceMemberList.
         try {
             props.setLoadingState(true);
             const endpoint = props.namespace.roleUrl;
-            const result = await service.setNamespaceMember(endpoint, membership.user, role);
+            const result = await service.setNamespaceMember(abortController.current, endpoint, membership.user, role);
             if (isError(result)) {
                 throw result;
             }
@@ -80,14 +69,22 @@ export const UserNamespaceMemberList: FunctionComponent<UserNamespaceMemberList.
         return null;
     }
     return <>
-        <Box className={classes.memberListHeader}>
-            <Typography variant='h5'>Members in {props.namespace.name}</Typography>
-            <Button className={classes.addButton} variant='outlined' onClick={handleOpenAddDialog}>
+        <Box
+            sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                mb: 1,
+                flexDirection: { xs: 'column', sm: 'column', md: 'row', lg: 'row', xl: 'row' }
+            }}
+        >
+            <Typography variant='h5'>Members</Typography>
+            <Button sx={{ ml: { xs: 2, sm: 2, md: 2, lg: 0, xl: 0 } }} variant='outlined' onClick={handleOpenAddDialog}>
                 Add Namespace Member
             </Button>
         </Box>
         {members.length ?
-            <Paper>
+            <Paper elevation={3}>
                 {members.map(member =>
                     <UserNamespaceMember
                         key={'nspcmbr-' + member.user.loginName + member.user.provider}
@@ -108,11 +105,9 @@ export const UserNamespaceMemberList: FunctionComponent<UserNamespaceMemberList.
     </>;
 };
 
-export namespace UserNamespaceMemberList {
-    export interface Props {
-        namespace: Namespace;
-        setLoadingState: (loadingState: boolean) => void;
-        filterUsers: (user: UserData) => boolean;
-        fixSelf: boolean;
-    }
+export interface UserNamespaceMemberListProps {
+    namespace: Namespace;
+    setLoadingState: (loadingState: boolean) => void;
+    filterUsers: (user: UserData) => boolean;
+    fixSelf: boolean;
 }

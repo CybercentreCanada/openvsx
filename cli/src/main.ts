@@ -11,11 +11,13 @@
 import * as commander from 'commander';
 import * as leven from 'leven';
 import { createNamespace } from './create-namespace';
+import { verifyPat } from './verify-pat';
 import { publish } from './publish';
 import { handleError } from './util';
 import { getExtension } from './get';
-
-const pkg = require('../package.json');
+import login from './login';
+import logout from './logout';
+import { LIB_VERSION } from './version';
 
 module.exports = function (argv: string[]): void {
     const program = new commander.Command();
@@ -23,7 +25,7 @@ module.exports = function (argv: string[]): void {
         .option('-r, --registryUrl <url>', 'Use the registry API at this base URL.')
         .option('-p, --pat <token>', 'Personal access token.')
         .option('--debug', 'Include debug information on error')
-        .version(pkg.version, '-V, --version', 'Print the Eclipse Open VSX CLI version');
+        .version(LIB_VERSION, '-V, --version', 'Print the Eclipse Open VSX CLI version');
 
     const createNamespaceCmd = program.command('create-namespace <name>');
     createNamespaceCmd.description('Create a new namespace')
@@ -33,16 +35,33 @@ module.exports = function (argv: string[]): void {
                 .catch(handleError(program.debug));
         });
 
+    const verifyTokenCmd = program.command('verify-pat [namespace]');
+    verifyTokenCmd.description('Verify that a personal access token can publish to a namespace')
+        .action((namespace?: string) => {
+            const { registryUrl, pat } = program.opts();
+            verifyPat({ namespace, registryUrl, pat })
+                .catch(handleError(program.debug));
+        });
+
     const publishCmd = program.command('publish [extension.vsix]');
     publishCmd.description('Publish an extension, packaging it first if necessary.')
-        .option('--packagePath <path>', 'Package and publish the extension at the specified path.')
+        .option('-t, --target <targets...>', 'Target architectures')
+        .option('-i, --packagePath <paths...>', 'Publish the provided VSIX packages.')
         .option('--baseContentUrl <url>', 'Prepend all relative links in README.md with this URL.')
         .option('--baseImagesUrl <url>', 'Prepend all relative image links in README.md with this URL.')
         .option('--yarn', 'Use yarn instead of npm while packing extension files.')
-        .action((extensionFile: string, { packagePath, baseContentUrl, baseImagesUrl, yarn }) => {
+        .option('--pre-release', 'Mark this package as a pre-release')
+        .option('--no-dependencies', 'Disable dependency detection via npm or yarn')
+        .option('--skip-duplicate', 'Fail silently if version already exists on the marketplace')
+        .option('--packageVersion <version>', 'Version of the provided VSIX packages.')
+        .action((extensionFile: string, { target, packagePath, baseContentUrl, baseImagesUrl, yarn, preRelease, dependencies, skipDuplicate, packageVersion }) => {
             if (extensionFile !== undefined && packagePath !== undefined) {
                 console.error('\u274c  Please specify either a package file or a package path, but not both.\n');
                 publishCmd.help();
+            }
+            if (extensionFile !== undefined && target !== undefined) {
+                console.warn("Ignoring option '--target' for prepackaged extension.");
+                target = undefined;
             }
             if (extensionFile !== undefined && baseContentUrl !== undefined)
                 console.warn("Ignoring option '--baseContentUrl' for prepackaged extension.");
@@ -50,23 +69,50 @@ module.exports = function (argv: string[]): void {
                 console.warn("Ignoring option '--baseImagesUrl' for prepackaged extension.");
             if (extensionFile !== undefined && yarn !== undefined)
                 console.warn("Ignoring option '--yarn' for prepackaged extension.");
+            if (extensionFile !== undefined && packageVersion !== undefined)
+                console.warn("Ignoring option '--packageVersion' for prepackaged extension.");
             const { registryUrl, pat } = program.opts();
-            publish({ extensionFile, registryUrl, pat, packagePath, baseContentUrl, baseImagesUrl, yarn })
-                .catch(handleError(program.debug,
-                    'See the documentation for more information:\n'
-                    + 'https://github.com/eclipse/openvsx/wiki/Publishing-Extensions'
-                ));
+            publish({ extensionFile, registryUrl, pat, targets: typeof target === 'string' ? [target] : target, packagePath: typeof packagePath === 'string' ? [packagePath] : packagePath, baseContentUrl, baseImagesUrl, yarn, preRelease, dependencies, skipDuplicate, packageVersion })
+                .then(results => {
+                    const reasons = results.filter(result => result.status === 'rejected')
+                        .map(rejectedResult => rejectedResult.reason);
+
+                    if (reasons.length > 0) {
+                        const message = 'See the documentation for more information:\n'
+                            + 'https://github.com/eclipse/openvsx/wiki/Publishing-Extensions';
+                        const errorHandler = handleError(program.debug, message, false);
+                        for (const reason of reasons) {
+                            errorHandler(reason);
+                        }
+
+                        process.exit(1);
+                    }
+                });
         });
 
     const getCmd = program.command('get <namespace.extension>');
     getCmd.description('Download an extension or its metadata.')
+        .option('-t, --target <target>', 'Target architecture')
         .option('-v, --versionRange <version>', 'Specify an exact version or a version range.')
         .option('-o, --output <path>', 'Save the output in the specified file or directory.')
         .option('--metadata', 'Print the extension\'s metadata instead of downloading it.')
-        .action((extensionId: string, { versionRange, output, metadata }) => {
+        .action((extensionId: string, { target, versionRange, output, metadata }) => {
             const { registryUrl } = program.opts();
-            getExtension({ extensionId, version: versionRange, registryUrl, output, metadata })
+            getExtension({ extensionId, target: target, version: versionRange, registryUrl, output, metadata })
                 .catch(handleError(program.debug));
+        });
+
+    const loginCmd = program.command('login <namespace>');
+    loginCmd.description('Adds a namespace to the list of known namespaces')
+        .action((namespace: string) => {
+            const { registryUrl, pat } = program.opts();
+            login({ namespace, registryUrl, pat }).catch(handleError(program.debug));
+        });
+
+    const logoutCmd = program.command('logout <namespace>');
+    logoutCmd.description('Removes a namespace from the list of known namespaces')
+        .action((namespace: string) => {
+            logout(namespace).catch(handleError(program.debug));
         });
 
     program

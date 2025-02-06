@@ -11,16 +11,15 @@ package org.eclipse.openvsx.json;
 
 import java.util.List;
 
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;;
+import io.swagger.v3.oas.annotations.media.Schema;
 
-@ApiModel(
-    value = "ReviewList",
+@Schema(
+    name = "ReviewList",
     description = "List of reviews of an extension"
 )
 @JsonInclude(Include.NON_NULL)
@@ -28,19 +27,42 @@ public class ReviewListJson extends ResultJson {
 
     public static ReviewListJson error(String message) {
         var info = new ReviewListJson();
-        info.error = message;
+        info.setError(message);
         return info;
     }
 
-    @ApiModelProperty(hidden = true)
+    @Schema(hidden = true)
     @NotNull
-    public String postUrl;
+    private String postUrl;
 
-    @ApiModelProperty(hidden = true)
+    @Schema(hidden = true)
     @NotNull
-    public String deleteUrl;
+    private String deleteUrl;
 
     @NotNull
-    public List<ReviewJson> reviews;
+    private List<ReviewJson> reviews;
 
+    public String getPostUrl() {
+        return postUrl;
+    }
+
+    public void setPostUrl(String postUrl) {
+        this.postUrl = postUrl;
+    }
+
+    public String getDeleteUrl() {
+        return deleteUrl;
+    }
+
+    public void setDeleteUrl(String deleteUrl) {
+        this.deleteUrl = deleteUrl;
+    }
+
+    public List<ReviewJson> getReviews() {
+        return reviews;
+    }
+
+    public void setReviews(List<ReviewJson> reviews) {
+        this.reviews = reviews;
+    }
 }

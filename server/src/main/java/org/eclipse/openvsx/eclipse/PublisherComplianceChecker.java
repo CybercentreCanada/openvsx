@@ -9,55 +9,63 @@
  ********************************************************************************/
 package org.eclipse.openvsx.eclipse;
 
-import java.util.LinkedHashSet;
-
-import javax.persistence.EntityManager;
-
+import jakarta.persistence.EntityManager;
 import org.eclipse.openvsx.ExtensionService;
 import org.eclipse.openvsx.entities.Extension;
 import org.eclipse.openvsx.entities.PersonalAccessToken;
 import org.eclipse.openvsx.entities.UserData;
 import org.eclipse.openvsx.repositories.RepositoryService;
+import org.eclipse.openvsx.util.NamingUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationStartedEvent;
 import org.springframework.context.event.EventListener;
-import org.springframework.data.util.Streamable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
+
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Component
 public class PublisherComplianceChecker {
 
     protected final Logger logger = LoggerFactory.getLogger(PublisherComplianceChecker.class);
 
-    @Autowired
-    TransactionTemplate transactions;
-
-    @Autowired
-    EntityManager entityManager;
-
-    @Autowired
-    RepositoryService repositories;
-
-    @Autowired
-    ExtensionService extensions;
-
-    @Autowired
-    EclipseService eclipseService;
+    private final TransactionTemplate transactions;
+    private final EntityManager entityManager;
+    private final RepositoryService repositories;
+    private final ExtensionService extensions;
+    private final EclipseService eclipseService;
 
     @Value("${ovsx.eclipse.check-compliance-on-start:false}")
     boolean checkCompliance;
+
+    public PublisherComplianceChecker(
+            TransactionTemplate transactions,
+            EntityManager entityManager,
+            RepositoryService repositories,
+            ExtensionService extensions,
+            EclipseService eclipseService
+    ) {
+        this.transactions = transactions;
+        this.entityManager = entityManager;
+        this.repositories = repositories;
+        this.extensions = extensions;
+        this.eclipseService = eclipseService;
+    }
 
     @EventListener
     public void checkPublishers(ApplicationStartedEvent event) {
         if (!checkCompliance || !eclipseService.isActive())
             return;
 
-        repositories.findAllUsers().forEach(user -> {
-            var accessTokens = repositories.findAccessTokens(user);
+        var publisherTokens = repositories.findAllAccessTokens().stream()
+                .collect(Collectors.groupingBy(PersonalAccessToken::getUser));
+        publisherTokens.keySet().forEach(user -> {
+            var accessTokens = publisherTokens.get(user);
             if (!accessTokens.isEmpty() && !isCompliant(user)) {
                 // Found a non-compliant publisher: deactivate all extension versions
                 transactions.<Void>execute(status -> {
@@ -74,34 +82,29 @@ public class PublisherComplianceChecker {
         if (user.getProvider() == null) {
             return true;
         }
-        var eclipseData = user.getEclipseData();
-        if (eclipseData == null || eclipseData.personId == null) {
+        if (user.getEclipsePersonId() == null) {
             // The user has never logged in with Eclipse
             return false;
         }
-        if (eclipseData.publisherAgreement == null || !eclipseData.publisherAgreement.isActive) {
-            // We don't have any active PA in our DB, let's check their Eclipse profile
-            var profile = eclipseService.getPublicProfile(eclipseData.personId);
-            if (profile.publisherAgreements == null || profile.publisherAgreements.openVsx == null
-                    || profile.publisherAgreements.openVsx.version == null) {
-                return false;
-            }
-        }
-        return true;
+
+        var profile = eclipseService.getPublicProfile(user.getEclipsePersonId());
+        return Optional.of(profile)
+                .map(EclipseProfile::getPublisherAgreements)
+                .map(EclipseProfile.PublisherAgreements::getOpenVsx)
+                .map(EclipseProfile.PublisherAgreement::getVersion)
+                .isPresent();
     }
 
-    private void deactivateExtensions(Streamable<PersonalAccessToken> accessTokens) {
+    private void deactivateExtensions(List<PersonalAccessToken> accessTokens) {
         var affectedExtensions = new LinkedHashSet<Extension>();
         for (var accessToken : accessTokens) {
             var versions = repositories.findVersionsByAccessToken(accessToken, true);
             for (var version : versions) {
                 version.setActive(false);
                 entityManager.merge(version);
-                affectedExtensions.add(version.getExtension());
-                logger.info("Deactivated: " + accessToken.getUser().getLoginName() + " - "
-                        + version.getExtension().getNamespace().getName()
-                        + "." + version.getExtension().getName()
-                        + " v" + version.getVersion());
+                var extension = version.getExtension();
+                affectedExtensions.add(extension);
+                logger.info("Deactivated: " + accessToken.getUser().getLoginName() + " - " + NamingUtil.toLogFormat(version));
             }
         }
         

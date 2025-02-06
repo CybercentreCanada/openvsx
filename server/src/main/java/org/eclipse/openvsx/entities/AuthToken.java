@@ -9,6 +9,7 @@
  ********************************************************************************/
 package org.eclipse.openvsx.entities;
 
+import java.io.Serializable;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Set;
@@ -17,40 +18,26 @@ import java.util.Set;
  * This class is not mapped to a database entity, but parsed / serialized to
  * JSON via a column converter.
  */
-public class AuthToken {
-
-    public String accessToken;
-
-    public Instant issuedAt;
-
-    public Instant expiresAt;
-
-    public Set<String> scopes;
-    
-    public String refreshToken;
-
-    public Instant refreshExpiresAt;
+public record AuthToken(
+        String accessToken,
+        Instant issuedAt,
+        Instant expiresAt,
+        Set<String> scopes,
+        String refreshToken,
+        Instant refreshExpiresAt
+) implements Serializable {
 
     @Override
-    public boolean equals(Object obj) {
-        if (this == obj)
-            return true;
-        if (!(obj instanceof AuthToken))
-            return false;
-        var other = (AuthToken) obj;
-        if (!Objects.equals(this.accessToken, other.accessToken))
-            return false;
-        if (!Objects.equals(this.issuedAt, other.issuedAt))
-            return false;
-        if (!Objects.equals(this.expiresAt, other.expiresAt))
-            return false;
-        if (!Objects.equals(this.scopes, other.scopes))
-            return false;
-        if (!Objects.equals(this.refreshToken, other.refreshToken))
-            return false;
-        if (!Objects.equals(this.refreshExpiresAt, other.refreshExpiresAt))
-            return false;
-        return true;
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        AuthToken authToken = (AuthToken) o;
+        return Objects.equals(accessToken, authToken.accessToken)
+                && Objects.equals(issuedAt, authToken.issuedAt)
+                && Objects.equals(expiresAt, authToken.expiresAt)
+                && Objects.equals(scopes, authToken.scopes)
+                && Objects.equals(refreshToken, authToken.refreshToken)
+                && Objects.equals(refreshExpiresAt, authToken.refreshExpiresAt);
     }
 
     @Override
@@ -58,7 +45,7 @@ public class AuthToken {
         return Objects.hash(accessToken, issuedAt, expiresAt, scopes, refreshToken, refreshExpiresAt);
     }
 
-	@Override
+    @Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		sb.append("accessToken: [");

@@ -17,16 +17,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Set up Node.js
-      uses: actions/setup-node@v1
+      uses: actions/setup-node@v4
       with:
-        node-version: 12.x
+        node-version: 18.x
     - name: Set up JDK
-      uses: actions/setup-java@v1
+      uses: actions/setup-java@v4
       with:
-        java-version: 11
+        distribution: 'temurin'
+        java-version: 17
     - name: Install Yarn
-      run: npm install --global yarn
-    - uses: actions/checkout@v2
+      run: |
+        corepack enable
+        corepack prepare yarn@stable --activate
+    - uses: actions/checkout@v4
     - name: Set Image Version
       run: echo "IMAGE_VERSION=${GITHUB_SHA:0:7}" >> $GITHUB_ENV
     - name: Build CLI
@@ -43,3 +46,12 @@ jobs:
         docker push $SERVER_TAG:$IMAGE_VERSION
         docker push $WEBUI_TAG:$IMAGE_VERSION
       if: github.repository == 'eclipse/openvsx' && github.ref == 'refs/heads/master'
+    - name: Save PR number to file
+      if: github.event_name == 'pull_request'
+      run: echo ${{ github.event.number }} > PR_NUMBER.txt
+    - name: Archive PR number
+      if: github.event_name == 'pull_request'
+      uses: actions/upload-artifact@v4
+      with:
+        name: PR_NUMBER
+        path: PR_NUMBER.txt

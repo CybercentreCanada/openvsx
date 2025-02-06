@@ -11,11 +11,7 @@ package org.eclipse.openvsx.entities;
 
 import java.time.LocalDateTime;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-import javax.persistence.ManyToOne;
+import jakarta.persistence.*;
 
 import org.eclipse.openvsx.json.ReviewJson;
 import org.eclipse.openvsx.util.TimeUtil;
@@ -24,25 +20,26 @@ import org.eclipse.openvsx.util.TimeUtil;
 public class ExtensionReview {
 
     @Id
-    @GeneratedValue
-    long id;
+	@GeneratedValue(generator = "extensionReviewSeq")
+	@SequenceGenerator(name = "extensionReviewSeq", sequenceName = "extension_review_seq")
+	private long id;
 
     @ManyToOne
-    Extension extension;
+	private Extension extension;
 
-    boolean active;
+	private boolean active;
 
-    LocalDateTime timestamp;
+	private LocalDateTime timestamp;
 
     @ManyToOne
-    UserData user;
+	private UserData user;
 
-    String title;
+	private String title;
 
     @Column(length = 2048)
-    String comment;
+	private String comment;
 
-    int rating;
+	private int rating;
 
 
     /**
@@ -50,11 +47,11 @@ public class ExtensionReview {
      */
     public ReviewJson toReviewJson() {
         var json = new ReviewJson();
-        json.timestamp = TimeUtil.toUTCString(this.getTimestamp());
-        json.user = this.getUser().toUserJson();
-        json.title = this.getTitle();
-        json.comment = this.getComment();
-        json.rating = this.getRating();
+        json.setTimestamp(TimeUtil.toUTCString(this.getTimestamp()));
+        json.setUser(this.getUser().toUserJson());
+        json.setTitle(this.getTitle());
+        json.setComment(this.getComment());
+        json.setRating(this.getRating());
         return json;
     }
 

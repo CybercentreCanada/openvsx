@@ -3,29 +3,43 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath "org.hibernate:hibernate-gradle-plugin:5.4.22.Final"
+        classpath "org.hibernate.orm:hibernate-gradle-plugin:6.2.2.Final"
     }
 }
 plugins {
-    id 'de.undercouch.download' version '4.1.1'
-    id 'org.springframework.boot' version '2.4.0'
-    id 'io.spring.dependency-management' version '1.0.10.RELEASE'
+    id 'jacoco'
+    id 'nu.studer.jooq' version '8.2.1'
+    id 'de.undercouch.download' version '5.4.0'
+    id 'org.springframework.boot' version '3.2.4'
+    id 'io.spring.dependency-management' version '1.1.0'
+    id 'io.gatling.gradle' version '3.9.5'
     id 'java'
 }
 apply plugin: 'org.hibernate.orm'
 
+def jooqSrcDir = 'src/main/jooq-gen'
 def versions = [
-    java: '11',
-    flyway: '7.3.1',
-    springfox: '3.0.0',
-    spdx: '2.2.4',
-    gcloud: '1.113.4',
-    azure: '12.9.0',
-    guava: '28.2-jre',
-    junit: '5.7.1',
+    java: '17',
+    flyway: '9.19.1',
+    springdoc: '2.1.0',
+    gcloud: '2.36.1',
+    azure: '12.23.0',
+    aws: '2.29.29',
+    junit: '5.9.2',
     testcontainers: '1.15.2',
-    jackson: '2.12.5',
-    woodstox: '6.2.4'
+    jackson: '2.15.2',
+    woodstox: '6.4.0',
+    jobrunr: '7.3.1',
+    bucket4j: '0.12.7',
+    ehcache: '3.10.8',
+    tika: '2.6.0',
+    bouncycastle: '1.77',
+    commons_lang3: '3.12.0',
+    httpclient5: '5.2.1',
+    jaxb_api: '2.3.1',
+    jaxb_impl: '2.3.8',
+    gatling: '3.9.5',
+    loki4j: '1.4.2'
 ]
 ext['junit-jupiter.version'] = versions.junit
 sourceCompatibility = versions.java
@@ -36,6 +50,9 @@ repositories {
 
 // The 'dev' source set contains the development setup. These files are not included in the jar.
 sourceSets {
+    main {
+        java.srcDirs += jooqSrcDir
+    }
     dev {
         compileClasspath += main.output
         runtimeClasspath += main.output
@@ -45,35 +62,57 @@ sourceSets {
 configurations {
     devImplementation.extendsFrom implementation
     devRuntimeOnly.extendsFrom runtimeOnly
+
+    gatling.exclude group: "io.gatling.highcharts", module: "gatling-charts-highcharts"
 }
 
 dependencies {
-    implementation "org.springframework.boot:spring-boot-starter-web"
+    implementation('org.springframework.boot:spring-boot-starter-web')
+    implementation 'org.springframework.boot:spring-boot-starter-jetty'
+    modules {
+        module("org.springframework.boot:spring-boot-starter-tomcat") {
+            replacedBy("org.springframework.boot:spring-boot-starter-jetty")
+        }
+    }
     implementation "org.springframework.boot:spring-boot-starter-validation"
+    implementation "org.springframework.boot:spring-boot-starter-jooq"
     implementation "org.springframework.boot:spring-boot-starter-data-jpa"
     implementation "org.springframework.boot:spring-boot-starter-data-elasticsearch"
     implementation "org.springframework.boot:spring-boot-starter-security"
     implementation "org.springframework.boot:spring-boot-starter-actuator"
+    implementation "org.springframework.boot:spring-boot-starter-cache"
+    implementation "org.springframework.boot:spring-boot-starter-aop"
     implementation "org.springframework.security:spring-security-oauth2-client"
     implementation "org.springframework.security:spring-security-oauth2-jose"
     implementation "org.springframework.session:spring-session-jdbc"
+    implementation "org.springframework.retry:spring-retry"
+    implementation "org.bouncycastle:bcpkix-jdk18on:${versions.bouncycastle}"
+    implementation "org.ehcache:ehcache:${versions.ehcache}"
+    implementation "com.giffing.bucket4j.spring.boot.starter:bucket4j-spring-boot-starter:${versions.bucket4j}"
+    implementation "org.jobrunr:jobrunr-spring-boot-3-starter:${versions.jobrunr}"
     implementation "org.flywaydb:flyway-core:${versions.flyway}"
     implementation "com.google.cloud:google-cloud-storage:${versions.gcloud}"
     implementation "com.azure:azure-storage-blob:${versions.azure}"
-    implementation "io.springfox:springfox-boot-starter:${versions.springfox}"
-    implementation "com.google.guava:guava:${versions.guava}"
+    implementation "software.amazon.awssdk:s3:${versions.aws}"
+    implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:${versions.springdoc}"
     implementation "com.fasterxml.jackson.core:jackson-core:${versions.jackson}"
     implementation "com.fasterxml.jackson.core:jackson-annotations:${versions.jackson}"
     implementation "com.fasterxml.jackson.core:jackson-databind:${versions.jackson}"
     implementation "com.fasterxml.jackson.module:jackson-module-jaxb-annotations:${versions.jackson}"
     implementation "com.fasterxml.woodstox:woodstox-core:${versions.woodstox}"
     implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-xml:${versions.jackson}"
-    implementation("org.spdx:spdx-tools:${versions.spdx}") {
-        exclude group: 'net.sf.saxon'
-        exclude group: 'org.antlr', module: 'antlr'
-        exclude group: 'org.apache.logging.log4j', module: 'log4j-slf4j-impl'
-    }
+    implementation "javax.xml.bind:jaxb-api:${versions.jaxb_api}"
+    implementation "com.sun.xml.bind:jaxb-impl:${versions.jaxb_impl}"
+    implementation "org.apache.commons:commons-lang3:${versions.commons_lang3}"
+    implementation "org.apache.httpcomponents.client5:httpclient5:${versions.httpclient5}"
+    implementation "org.apache.tika:tika-core:${versions.tika}"
+    implementation "com.github.loki4j:loki-logback-appender:${versions.loki4j}"
+    implementation "io.micrometer:micrometer-tracing"
+    implementation "io.micrometer:micrometer-tracing-bridge-otel"
+    implementation "io.opentelemetry:opentelemetry-exporter-zipkin"
+    runtimeOnly "io.micrometer:micrometer-registry-prometheus"
     runtimeOnly "org.postgresql:postgresql"
+    jooqGenerator "org.postgresql:postgresql"
 
     devRuntimeOnly "org.springframework.boot:spring-boot-devtools"
 
@@ -85,18 +124,54 @@ dependencies {
     testImplementation "org.junit.jupiter:junit-jupiter-api:${versions.junit}"
     testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:${versions.junit}"
     testRuntimeOnly "org.testcontainers:postgresql:${versions.testcontainers}"
+
+    gatling "io.gatling:gatling-core:${versions.gatling}"
+    gatling "io.gatling:gatling-app:${versions.gatling}"
+
+    constraints {
+        implementation('org.eclipse.parsson:parsson:1.0.5') {
+            because 'version 1.0.0 pulled from elasticsearch-java has CVE-2023-4043'
+        }
+    }
 }
 
-hibernate {
-    enhance {
-        enableLazyInitialization = true
-        enableDirtyTracking = true
+jooq {
+    // use jOOQ version defined in Spring Boot
+    version = dependencyManagement.importedProperties['jooq.version']
+    edition = nu.studer.gradle.jooq.JooqEdition.OSS
+    configurations {
+        main {
+            generateSchemaSourceOnCompilation = false
+            generationTool {
+                logging = org.jooq.meta.jaxb.Logging.WARN
+                jdbc {
+                    driver = 'org.postgresql.Driver'
+                    url = 'jdbc:postgresql://localhost:5432/postgres'
+                    user = 'gitpod'
+                    password = 'gitpod'
+                }
+                generator {
+                    name = 'org.jooq.codegen.DefaultGenerator'
+                    database {
+                        name = 'org.jooq.meta.postgres.PostgresDatabase'
+                        inputSchema = 'public'
+                        includes = '.*'
+                        excludes = ''
+                    }
+                    target {
+                        packageName = 'org.eclipse.openvsx.jooq'
+                        directory = jooqSrcDir
+                    }
+                }
+            }
+        }
     }
 }
 
 task runServer(type: JavaExec) {
+//    jvmArgs = ['-Xverify:none']
     classpath = sourceSets.dev.runtimeClasspath
-    main = 'org.eclipse.openvsx.RegistryApplication'
+    mainClass = 'org.eclipse.openvsx.RegistryApplication'
 }
 
 test {
@@ -110,6 +185,16 @@ task unitTests(type: Test) {
     classpath = sourceSets.test.runtimeClasspath
     useJUnitPlatform()
     exclude 'org/eclipse/openvsx/IntegrationTest.class'
+    exclude 'org/eclipse/openvsx/cache/CacheServiceTest.class'
+    exclude 'org/eclipse/openvsx/repositories/RepositoryServiceSmokeTest.class'
+}
+
+jacocoTestReport {
+    reports {
+        xml.required = true
+    }
+
+    dependsOn test // tests are required to run before generating the report
 }
 
 apply from: 'dependencies.gradle'

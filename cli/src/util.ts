@@ -14,6 +14,10 @@ import * as tmp from 'tmp';
 import * as http from 'http';
 import * as readline from 'readline';
 import { RegistryOptions } from './registry';
+import { VerifyPatOptions, doVerifyPat } from './verify-pat';
+import { PublishOptions } from './publish';
+import { openDefaultStore } from './store';
+import { CreateNamespaceOptions } from './create-namespace';
 
 export { promisify } from 'util';
 
@@ -68,7 +72,7 @@ export function createTempFile(options: tmp.TmpNameOptions): Promise<string> {
     });
 }
 
-export function handleError(debug?: boolean, additionalMessage?: string): (reason: any) => void {
+export function handleError(debug?: boolean, additionalMessage?: string, exit: boolean = true): (reason: any) => void {
     return reason => {
         if (reason instanceof Error && !debug) {
             console.error(`\u274c  ${reason.message}`);
@@ -82,7 +86,10 @@ export function handleError(debug?: boolean, additionalMessage?: string): (reaso
         } else {
             console.error('An unknown error occurred.');
         }
-        process.exit(1);
+
+        if (exit) {
+            process.exit(1);
+        }
     };
 }
 
@@ -93,10 +100,10 @@ export function statusError(response: http.IncomingMessage): Error {
         return new Error(`The server responded with status ${response.statusCode}.`);
 }
 
-export function readFile(name: string, packagePath?: string, encoding = 'utf-8'): Promise<string> {
+export function readFile(name: string, packagePath?: string, encoding: BufferEncoding = 'utf-8'): Promise<string> {
     return new Promise((resolve, reject) => {
         fs.readFile(
-            path.join(packagePath || process.cwd(), name),
+            path.join(packagePath ?? process.cwd(), name),
             { encoding },
             (err, content) => {
                 if (err) {
@@ -126,10 +133,10 @@ export function validateManifest(manifest: Manifest): void {
     }
 }
 
-export function writeFile(name: string, content: string, packagePath?: string, encoding = 'utf-8'): Promise<void> {
+export function writeFile(name: string, content: string, packagePath?: string, encoding: BufferEncoding = 'utf-8'): Promise<void> {
     return new Promise((resolve, reject) => {
         fs.writeFile(
-            path.join(packagePath || process.cwd(), name),
+            path.join(packagePath ?? process.cwd(), name),
             content,
             { encoding },
             err => {
@@ -179,4 +186,30 @@ export async function getUserChoice<R extends string>(text: string, values: R[],
         }
     }
     return defaultValue;
+}
+
+export async function requestPAT(namespace: string, options: CreateNamespaceOptions | PublishOptions | VerifyPatOptions, verify: boolean = true): Promise<string> {
+    const pat = await getUserInput(`Personal Access Token for namespace '${namespace}':`);
+    if (verify) {
+        await doVerifyPat({ ...options, namespace, pat });
+    }
+
+    return pat;
+}
+
+export async function getPAT(namespace: string, options: CreateNamespaceOptions | PublishOptions | VerifyPatOptions, verify: boolean = true): Promise<string> {
+    if (options?.pat) {
+        return options.pat;
+    }
+
+    const store = await openDefaultStore();
+    let pat = store.get(namespace);
+    if (pat) {
+        return pat;
+    }
+
+    pat = await requestPAT(namespace, options, verify);
+    await store.add(namespace, pat);
+
+    return pat;
 }

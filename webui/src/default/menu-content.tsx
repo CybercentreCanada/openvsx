@@ -8,109 +8,222 @@
  * SPDX-License-Identifier: EPL-2.0
  ********************************************************************************/
 
-import * as React from 'react';
-import { withStyles, createStyles } from '@material-ui/styles';
-import { Theme, WithStyles, Typography, MenuItem, Link } from '@material-ui/core';
+import React, { FunctionComponent, PropsWithChildren, useContext } from 'react';
+import { Typography, MenuItem, Link, Button, IconButton, Accordion, AccordionSummary, Avatar, AccordionDetails } from '@mui/material';
+import { useLocation } from 'react-router-dom';
 import { Link as RouteLink } from 'react-router-dom';
-import GitHubIcon from '@material-ui/icons/GitHub';
-import MenuBookIcon from '@material-ui/icons/MenuBook';
-import ForumIcon from '@material-ui/icons/Forum';
-import InfoIcon from '@material-ui/icons/Info';
-
-const menuContentStyle = (theme: Theme) => createStyles({
-    headerItem: {
-        margin: theme.spacing(2.5),
-        color: theme.palette.text.primary,
-        textDecoration: 'none',
-        fontSize: '1.1rem',
-        fontFamily: theme.typography.fontFamily,
-        fontWeight: theme.typography.fontWeightLight,
-        letterSpacing: 1,
-        '&:hover': {
-            color: theme.palette.secondary.main,
-            textDecoration: 'none'
-        }
-    },
-    menuItem: {
-        cursor: 'auto',
-        '&>a': {
-            textDecoration: 'none'
-        }
-    },
-    itemIcon: {
-        marginRight: theme.spacing(1),
-        width: '16px',
-        height: '16px',
-    },
-    alignVertically: {
-        display: 'flex',
-        alignItems: 'center'
-    }
-});
-
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import GitHubIcon from '@mui/icons-material/GitHub';
+import MenuBookIcon from '@mui/icons-material/MenuBook';
+import ForumIcon from '@mui/icons-material/Forum';
+import InfoIcon from '@mui/icons-material/Info';
+import PublishIcon from '@mui/icons-material/Publish';
+import AccountBoxIcon from '@mui/icons-material/AccountBox';
+import { UserAvatar } from '../pages/user/avatar';
+import { UserSettingsRoutes } from '../pages/user/user-settings';
+import { styled, Theme } from '@mui/material/styles';
+import { MainContext } from '../context';
+import SettingsIcon from '@mui/icons-material/Settings';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import LogoutIcon from '@mui/icons-material/Logout';
+import { AdminDashboardRoutes } from '../pages/admin-dashboard/admin-dashboard';
+import { LogoutForm } from '../pages/user/logout';
 
 //-------------------- Mobile View --------------------//
 
-export class MobileMenuContentComponent extends React.Component<WithStyles<typeof menuContentStyle>> {
-    render(): React.ReactElement {
-        const classes = this.props.classes;
-        return <React.Fragment>
-            <MenuItem className={classes.menuItem}>
-                <Link target='_blank' href='https://github.com/eclipse/openvsx'>
-                    <Typography variant='body2' color='textPrimary' className={classes.alignVertically}>
-                        <GitHubIcon className={classes.itemIcon} />
-                        Source Code
-                    </Typography>
-                </Link>
-            </MenuItem>
-            <MenuItem className={classes.menuItem}>
-                <Link href='https://github.com/eclipse/openvsx/wiki'>
-                    <Typography variant='body2' color='textPrimary' className={classes.alignVertically}>
-                        <MenuBookIcon className={classes.itemIcon} />
-                        Documentation
-                    </Typography>
-                </Link>
-            </MenuItem>
-            <MenuItem className={classes.menuItem}>
-                <Link href='https://gitter.im/eclipse/openvsx'>
-                    <Typography variant='body2' color='textPrimary' className={classes.alignVertically}>
-                        <ForumIcon className={classes.itemIcon} />
-                        Community Chat
-                    </Typography>
-                </Link>
-            </MenuItem>
-            <MenuItem className={classes.menuItem}>
-                <RouteLink to='/about'>
-                    <Typography variant='body2' color='textPrimary' className={classes.alignVertically}>
-                        <InfoIcon className={classes.itemIcon} />
-                        About This Service
-                    </Typography>
-                </RouteLink>
-            </MenuItem>
-        </React.Fragment>;
+export const MobileMenuItem = styled(MenuItem)({
+    cursor: 'auto',
+    '&>a': {
+        textDecoration: 'none'
     }
-}
+});
 
-export const MobileMenuContent = withStyles(menuContentStyle)(MobileMenuContentComponent);
+export const itemIcon = {
+    mr: 1,
+    width: '16px',
+    height: '16px',
+};
 
+export const MobileMenuItemText: FunctionComponent<PropsWithChildren> = ({ children }) => {
+    return (
+        <Typography variant='body2' color='text.primary' sx={{ display: 'flex', alignItems: 'center', textTransform: 'none' }}>
+            {children}
+        </Typography>
+    );
+};
+
+export const MobileUserAvatar: FunctionComponent = () => {
+    const context = useContext(MainContext);
+    const user = context.user;
+    if (!user) {
+        return null;
+    }
+
+    return <Accordion sx={{ border: 0, borderRadius: 0, boxShadow: '0 0', background: 'transparent' }}>
+        <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            aria-controls='user-actions'
+            id='user-avatar'
+        >
+            <MobileMenuItemText>
+                <Avatar
+                    src={user.avatarUrl}
+                    alt={user.loginName}
+                    variant='rounded'
+                    sx={itemIcon} />
+                {user.loginName}
+            </MobileMenuItemText>
+        </AccordionSummary>
+        <AccordionDetails>
+            <MobileMenuItem>
+                <Link href={user.homepage}>
+                    <MobileMenuItemText>
+                        <GitHubIcon sx={itemIcon} />
+                        {user.loginName}
+                    </MobileMenuItemText>
+                </Link>
+            </MobileMenuItem>
+            <MobileMenuItem>
+                <RouteLink to={UserSettingsRoutes.PROFILE}>
+                    <MobileMenuItemText>
+                        <SettingsIcon sx={itemIcon} />
+                        Settings
+                    </MobileMenuItemText>
+                </RouteLink>
+            </MobileMenuItem>
+            {
+                user.role === 'admin'
+                    ? <MobileMenuItem>
+                        <RouteLink to={AdminDashboardRoutes.MAIN}>
+                            <MobileMenuItemText>
+                                <AdminPanelSettingsIcon sx={itemIcon} />
+                                Admin Dashboard
+                            </MobileMenuItemText>
+                        </RouteLink>
+                    </MobileMenuItem>
+                    : null
+            }
+            <MobileMenuItem>
+                <LogoutForm>
+                    <MobileMenuItemText>
+                        <LogoutIcon sx={itemIcon} />
+                        Log Out
+                    </MobileMenuItemText>
+                </LogoutForm>
+            </MobileMenuItem>
+        </AccordionDetails>
+    </Accordion>;
+};
+
+export const MobileMenuContent: FunctionComponent = () => {
+
+    const location = useLocation();
+    const { service, user } = useContext(MainContext);
+
+    return <>
+        {
+            user
+                ? <MobileUserAvatar/>
+                : <MobileMenuItem>
+                    <Link href={service.getLoginUrl()}>
+                        <MobileMenuItemText>
+                            <AccountBoxIcon sx={itemIcon} />
+                            Log In
+                        </MobileMenuItemText>
+                    </Link>
+                </MobileMenuItem>
+        }
+        {
+            !location.pathname.startsWith(UserSettingsRoutes.ROOT)
+            ? <MobileMenuItem>
+                <RouteLink to='/user-settings/extensions'>
+                    <MobileMenuItemText>
+                        <PublishIcon sx={itemIcon} />
+                        Publish Extension
+                    </MobileMenuItemText>
+                </RouteLink>
+            </MobileMenuItem>
+            : null
+        }
+        <MobileMenuItem>
+            <Link target='_blank' href='https://github.com/eclipse/openvsx'>
+                <MobileMenuItemText>
+                    <GitHubIcon sx={itemIcon} />
+                    Source Code
+                </MobileMenuItemText>
+            </Link>
+        </MobileMenuItem>
+        <MobileMenuItem>
+            <Link href='https://github.com/eclipse/openvsx/wiki'>
+                <MobileMenuItemText>
+                    <MenuBookIcon sx={itemIcon} />
+                    Documentation
+                </MobileMenuItemText>
+            </Link>
+        </MobileMenuItem>
+        <MobileMenuItem>
+            <Link href='https://join.slack.com/t/openvsxworkinggroup/shared_invite/zt-2y07y1ggy-ct3IfJljjGI6xWUQ9llv6A'>
+                <MobileMenuItemText>
+                    <ForumIcon sx={itemIcon} />
+                    Slack Workspace
+                </MobileMenuItemText>
+            </Link>
+        </MobileMenuItem>
+        <MobileMenuItem>
+            <RouteLink to='/about'>
+                <MobileMenuItemText>
+                    <InfoIcon sx={itemIcon} />
+                    About This Service
+                </MobileMenuItemText>
+            </RouteLink>
+        </MobileMenuItem>
+    </>;
+};
 
 //-------------------- Default View --------------------//
 
-export class DefaultMenuConentComponent extends React.Component<WithStyles<typeof menuContentStyle>> {
-    render(): React.ReactElement {
-        const classes = this.props.classes;
-        return <React.Fragment>
-            <Link href='https://github.com/eclipse/openvsx/wiki' className={classes.headerItem}>
-                Documentation
-            </Link>
-            <Link href='https://gitter.im/eclipse/openvsx' className={classes.headerItem}>
-                Community
-            </Link>
-            <RouteLink to='/about' className={classes.headerItem}>
-                About
-            </RouteLink>
-        </React.Fragment>;
+export const headerItem = ({ theme }: { theme: Theme }) => ({
+    margin: theme.spacing(2.5),
+    color: theme.palette.text.primary,
+    textDecoration: 'none',
+    fontSize: '1.1rem',
+    fontFamily: theme.typography.fontFamily,
+    fontWeight: theme.typography.fontWeightLight,
+    letterSpacing: 1,
+    '&:hover': {
+        color: theme.palette.secondary.main,
+        textDecoration: 'none'
     }
-}
+});
 
-export const DefaultMenuContent = withStyles(menuContentStyle)(DefaultMenuConentComponent);
+export const MenuLink = styled(Link)(headerItem);
+export const MenuRouteLink = styled(RouteLink)(headerItem);
+
+export const DefaultMenuContent: FunctionComponent = () => {
+    const { service, user } = useContext(MainContext);
+    return <>
+        <MenuLink href='https://github.com/eclipse/openvsx/wiki'>
+            Documentation
+        </MenuLink>
+        <MenuLink href='https://join.slack.com/t/openvsxworkinggroup/shared_invite/zt-2y07y1ggy-ct3IfJljjGI6xWUQ9llv6A'>
+            Slack Workspace
+        </MenuLink>
+        <MenuRouteLink to='/about'>
+            About
+        </MenuRouteLink>
+        <Button variant='contained' color='secondary' href='/user-settings/extensions' sx={{ mx: 2.5 }}>
+            Publish
+        </Button>
+        {
+            user ?
+                <UserAvatar />
+                :
+                <IconButton
+                    href={service.getLoginUrl()}
+                    title='Log In'
+                    aria-label='Log In' >
+                    <AccountBoxIcon />
+                </IconButton>
+        }
+    </>;
+};

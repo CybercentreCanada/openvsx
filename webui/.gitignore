@@ -1,5 +1,16 @@
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
 /lib/
 /static/bundle.*
 /static/*-report.html
 node_modules/
 yarn-error.log
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

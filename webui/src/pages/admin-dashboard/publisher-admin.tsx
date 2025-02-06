@@ -8,8 +8,8 @@
  * SPDX-License-Identifier: EPL-2.0
  ********************************************************************************/
 
-import React, { FunctionComponent, useState, useContext, createContext } from 'react';
-import { Typography, Box } from '@material-ui/core';
+import React, { FunctionComponent, useState, useContext, createContext, useEffect, useRef } from 'react';
+import { Typography, Box } from '@mui/material';
 import { PublisherInfo } from '../../extension-registry-types';
 import { MainContext } from '../../context';
 import { StyledInput } from './namespace-input';
@@ -18,10 +18,16 @@ import { PublisherDetails } from './publisher-details';
 
 export const UpdateContext = createContext({ handleUpdate: () => { } });
 export const PublisherAdmin: FunctionComponent = props => {
-    const [loading, setLoading] = useState(false);
-
     const { pageSettings, service, user, handleError } = useContext(MainContext);
 
+    const abortController = useRef<AbortController>(new AbortController());
+    useEffect(() => {
+        return () => {
+            abortController.current.abort();
+        };
+    }, []);
+
+    const [loading, setLoading] = useState(false);
     const [inputValue, setInputValue] = useState('');
     const onChangeInput = (name: string) => {
         setInputValue(name);
@@ -34,7 +40,7 @@ export const PublisherAdmin: FunctionComponent = props => {
         try {
             setLoading(true);
             if (publisherName !== '') {
-                const publisher = await service.admin.getPublisherInfo('github', publisherName);
+                const publisher = await service.admin.getPublisherInfo(abortController.current, 'github', publisherName);
                 setNotFound('');
                 setPublisher(publisher);
             } else {
@@ -43,7 +49,7 @@ export const PublisherAdmin: FunctionComponent = props => {
             }
             setLoading(false);
         } catch (err) {
-            if (err && err.status && err.status === 404) {
+            if (err?.status === 404) {
                 setNotFound(publisherName);
                 setPublisher(undefined);
             } else {

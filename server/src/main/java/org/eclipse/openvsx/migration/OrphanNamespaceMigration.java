@@ -9,35 +9,32 @@
  ********************************************************************************/
 package org.eclipse.openvsx.migration;
 
-import java.util.LinkedHashSet;
-
-import javax.persistence.EntityManager;
-import javax.transaction.Transactional;
-
+import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
 import org.eclipse.openvsx.entities.NamespaceMembership;
 import org.eclipse.openvsx.entities.UserData;
 import org.eclipse.openvsx.repositories.RepositoryService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.context.event.ApplicationStartedEvent;
-import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
+
+import java.util.LinkedHashSet;
 
 @Component
 public class OrphanNamespaceMigration {
 
     protected final Logger logger = LoggerFactory.getLogger(OrphanNamespaceMigration.class);
 
-    @Autowired
-    EntityManager entityManager;
+    private final EntityManager entityManager;
+    private final RepositoryService repositories;
 
-    @Autowired
-    RepositoryService repositories;
+    public OrphanNamespaceMigration(EntityManager entityManager, RepositoryService repositories) {
+        this.entityManager = entityManager;
+        this.repositories = repositories;
+    }
 
-    @EventListener
     @Transactional
-    public void fixOrphanNamespaces(ApplicationStartedEvent event) {
+    public void fixOrphanNamespaces() {
         int[] count = new int[3];
         repositories.findOrphanNamespaces().forEach(namespace -> {
             var extensions = repositories.findExtensions(namespace);
@@ -81,5 +78,4 @@ public class OrphanNamespaceMigration {
         if (count[2] > 0)
             logger.info("Found " + count[2] + " orphaned namespaces that could not be fixed.");
     }
-    
 }

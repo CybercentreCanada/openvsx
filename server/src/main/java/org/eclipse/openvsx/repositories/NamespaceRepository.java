@@ -9,10 +9,10 @@
  ********************************************************************************/
 package org.eclipse.openvsx.repositories;
 
+import org.eclipse.openvsx.entities.Namespace;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.Repository;
 import org.springframework.data.util.Streamable;
-import org.eclipse.openvsx.entities.Namespace;
 
 public interface NamespaceRepository extends Repository<Namespace, Long> {
 
@@ -24,5 +24,4 @@ public interface NamespaceRepository extends Repository<Namespace, Long> {
     Streamable<Namespace> findOrphans();
 
     long count();
-
 }

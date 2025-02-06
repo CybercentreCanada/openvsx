@@ -9,21 +9,13 @@
  ********************************************************************************/
 package org.eclipse.openvsx.security;
 
-import static org.eclipse.openvsx.security.CodedAuthException.*;
-
-import java.util.Collection;
-import java.util.Collections;
-
-import javax.persistence.EntityManager;
-
-import com.google.common.base.Strings;
-
+import jakarta.persistence.EntityManager;
+import org.apache.commons.lang3.StringUtils;
 import org.eclipse.openvsx.UserService;
 import org.eclipse.openvsx.eclipse.EclipseService;
 import org.eclipse.openvsx.entities.UserData;
 import org.eclipse.openvsx.repositories.RepositoryService;
 import org.eclipse.openvsx.util.ErrorResultException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
 import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.authentication.event.AuthenticationSuccessEvent;
@@ -40,29 +32,35 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 
+import java.util.Collection;
+import java.util.Collections;
+
+import static org.eclipse.openvsx.security.CodedAuthException.*;
+
 @Service
 public class OAuth2UserServices {
 
-    @Autowired
-    UserService users;
-
-    @Autowired
-    TokenService tokens;
-    
-    @Autowired
-    RepositoryService repositories;
-
-    @Autowired
-    EntityManager entityManager;
-
-    @Autowired
-    EclipseService eclipse;
-
+    private final UserService users;
+    private final TokenService tokens;
+    private final RepositoryService repositories;
+    private final EntityManager entityManager;
+    private final EclipseService eclipse;
     private final DefaultOAuth2UserService delegate = new DefaultOAuth2UserService();
     private final OAuth2UserService<OAuth2UserRequest, OAuth2User> oauth2;
     private final OAuth2UserService<OidcUserRequest, OidcUser> oidc;
 
-    public OAuth2UserServices() {
+    public OAuth2UserServices(
+            UserService users,
+            TokenService tokens,
+            RepositoryService repositories,
+            EntityManager entityManager,
+            EclipseService eclipse
+    ) {
+        this.users = users;
+        this.tokens = tokens;
+        this.repositories = repositories;
+        this.entityManager = entityManager;
+        this.eclipse = eclipse;
         this.oauth2 = new OAuth2UserService<OAuth2UserRequest, OAuth2User>() {
             @Override
             public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
@@ -115,7 +113,7 @@ public class OAuth2UserServices {
     private IdPrincipal loadGitHubUser(OAuth2UserRequest userRequest) {
         var authUser = delegate.loadUser(userRequest);
         String loginName = authUser.getAttribute("login");
-        if (Strings.isNullOrEmpty(loginName))
+        if (StringUtils.isEmpty(loginName))
             throw new CodedAuthException("Invalid login: missing 'login' field.", INVALID_GITHUB_USER);
         var userData = repositories.findUserByLoginName("github", loginName);
         if (userData == null)
@@ -139,19 +137,17 @@ public class OAuth2UserServices {
         try {
             var accessToken = userRequest.getAccessToken().getTokenValue();
             var profile = eclipse.getUserProfile(accessToken);
-            if (Strings.isNullOrEmpty(profile.githubHandle))
+            if (StringUtils.isEmpty(profile.getGithubHandle()))
                 throw new CodedAuthException("Your Eclipse profile is missing a GitHub username.",
                         ECLIPSE_MISSING_GITHUB_ID);
-            if (!profile.githubHandle.equalsIgnoreCase(userData.getLoginName()))
+            if (!profile.getGithubHandle().equalsIgnoreCase(userData.getLoginName()))
                 throw new CodedAuthException("The GitHub username setting in your Eclipse profile ("
-                        + profile.githubHandle
+                        + profile.getGithubHandle()
                         + ") does not match your GitHub authentication ("
                         + userData.getLoginName() + ").",
                         ECLIPSE_MISMATCH_GITHUB_ID);
+
             eclipse.updateUserData(userData, profile);
-            if (profile.publisherAgreements == null) {
-                eclipse.getPublisherAgreement(userData, accessToken);
-            }
             return principal;
         } catch (ErrorResultException exc) {
             throw new AuthenticationServiceException(exc.getMessage(), exc);

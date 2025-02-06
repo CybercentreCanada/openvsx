@@ -9,34 +9,87 @@
  ********************************************************************************/
 package org.eclipse.openvsx.json;
 
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;;
+import io.swagger.v3.oas.annotations.media.Schema;
 
-@ApiModel(
-    value = "ExtensionReference",
+import java.io.Serial;
+import java.io.Serializable;
+import java.util.Objects;
+
+@Schema(
+    name = "ExtensionReference",
     description = "A reference to another extension in the registry"
 )
 @JsonInclude(Include.NON_NULL)
-public class ExtensionReferenceJson {
+public class ExtensionReferenceJson implements Serializable {
 
-    @ApiModelProperty("URL to get metadata of the referenced extension")
+    @Serial
+    private static final long serialVersionUID = 1L;
+
+    @Schema(description = "URL to get metadata of the referenced extension")
     @NotNull
-    public String url;
+    private String url;
 
-    @ApiModelProperty("Namespace of the referenced extension")
+    @Schema(description = "Namespace of the referenced extension")
     @NotNull
-    public String namespace;
+    private String namespace;
 
-    @ApiModelProperty("Name of the referenced extension")
+    @Schema(description = "Name of the referenced extension")
     @NotNull
-    public String extension;
+    private String extension;
 
-    @ApiModelProperty(hidden = true)
-    public String version;
+    @Schema(hidden = true)
+    private String version;
 
+    public String getUrl() {
+        return url;
+    }
+
+    public void setUrl(String url) {
+        this.url = url;
+    }
+
+    public String getNamespace() {
+        return namespace;
+    }
+
+    public void setNamespace(String namespace) {
+        this.namespace = namespace;
+    }
+
+    public String getExtension() {
+        return extension;
+    }
+
+    public void setExtension(String extension) {
+        this.extension = extension;
+    }
+
+    public String getVersion() {
+        return version;
+    }
+
+    public void setVersion(String version) {
+        this.version = version;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        ExtensionReferenceJson that = (ExtensionReferenceJson) o;
+        return Objects.equals(url, that.url)
+                && Objects.equals(namespace, that.namespace)
+                && Objects.equals(extension, that.extension)
+                && Objects.equals(version, that.version);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(url, namespace, extension, version);
+    }
 }

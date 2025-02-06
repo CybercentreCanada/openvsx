@@ -9,25 +9,29 @@
  ********************************************************************************/
 package org.eclipse.openvsx.adapter;
 
-import java.util.UUID;
-
-import javax.transaction.Transactional;
-
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-
+import org.apache.commons.lang3.StringUtils;
+import org.eclipse.openvsx.UrlConfigService;
 import org.eclipse.openvsx.entities.Extension;
+import org.eclipse.openvsx.migration.HandlerJobRequest;
+import org.eclipse.openvsx.util.NamingUtil;
+import org.eclipse.openvsx.util.TimeUtil;
 import org.eclipse.openvsx.util.UrlUtil;
+import org.jobrunr.scheduling.JobRequestScheduler;
+import org.jobrunr.scheduling.cron.Cron;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.event.ApplicationStartedEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
+
+import java.time.ZoneId;
+import java.util.List;
+import java.util.UUID;
 
 @Component
 public class VSCodeIdService {
@@ -36,71 +40,97 @@ public class VSCodeIdService {
 
     protected final Logger logger = LoggerFactory.getLogger(VSCodeIdService.class);
 
-    @Autowired
-    RestTemplate restTemplate;
+    private final RestTemplate vsCodeIdRestTemplate;
+    private final UrlConfigService urlConfigService;
+    private final JobRequestScheduler scheduler;
 
-    @Value("${ovsx.vscode.upstream.gallery-url:}")
-    String upstreamUrl;
+    @Value("${ovsx.data.mirror.enabled:false}")
+    boolean mirrorEnabled;
 
-    @Transactional
-    public void createPublicId(Extension extension) {
-        var upstreamExtension = getUpstreamData(extension);
-        if (upstreamExtension != null) {
-            if (upstreamExtension.extensionId != null)
-                extension.setPublicId(upstreamExtension.extensionId);
-            if (upstreamExtension.publisher != null && upstreamExtension.publisher.publisherId != null)
-                extension.getNamespace().setPublicId(upstreamExtension.publisher.publisherId);
-        }
-        if (extension.getPublicId() == null)
-            extension.setPublicId(createRandomId());
-        if (extension.getNamespace().getPublicId() == null)
-            extension.getNamespace().setPublicId(createRandomId());
+    @Value("${ovsx.vscode.upstream.update-on-start:false}")
+    boolean updateOnStart;
+
+    @Value("${ovsx.migrations.delay.seconds:0}")
+    long delay;
+
+    public VSCodeIdService(
+            RestTemplate vsCodeIdRestTemplate,
+            UrlConfigService urlConfigService,
+            JobRequestScheduler scheduler
+    ) {
+        this.vsCodeIdRestTemplate = vsCodeIdRestTemplate;
+        this.urlConfigService = urlConfigService;
+        this.scheduler = scheduler;
     }
 
-    private String createRandomId() {
+    @EventListener
+    public void applicationStarted(ApplicationStartedEvent event) {
+        if(mirrorEnabled) {
+            return;
+        }
+        if(updateOnStart) {
+            scheduler.schedule(TimeUtil.getCurrentUTC().plusSeconds(delay), new HandlerJobRequest<>(VSCodeIdDailyUpdateJobRequestHandler.class));
+        }
+
+        scheduler.scheduleRecurrently("VSCodeIdDailyUpdate", Cron.daily(3), ZoneId.of("UTC"), new HandlerJobRequest<>(VSCodeIdDailyUpdateJobRequestHandler.class));
+    }
+
+    public String getRandomPublicId() {
         return UUID.randomUUID().toString();
     }
 
-    private ExtensionQueryResult.Extension getUpstreamData(Extension extension) {
-        if (Strings.isNullOrEmpty(upstreamUrl)) {
+    public PublicIds getUpstreamPublicIds(Extension extension) {
+        String extensionPublicId = null;
+        String namespacePublicId = null;
+        var upstream = getUpstreamExtension(extension);
+        if (upstream != null) {
+            extensionPublicId = upstream.extensionId();
+            if (upstream.publisher() != null) {
+                namespacePublicId = upstream.publisher().publisherId();
+            }
+        }
+
+        return new PublicIds(namespacePublicId, extensionPublicId);
+    }
+
+    private ExtensionQueryResult.Extension getUpstreamExtension(Extension extension) {
+        var galleryUrl = urlConfigService.getUpstreamGalleryUrl();
+        if (StringUtils.isEmpty(galleryUrl)) {
             return null;
         }
-        try {
-            var requestUrl = UrlUtil.createApiUrl(upstreamUrl, "extensionquery");
-            var requestData = createRequestData(extension);
-            var headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set(HttpHeaders.ACCEPT, "application/json;api-version=" + API_VERSION);
-            var result = restTemplate.postForObject(requestUrl, new HttpEntity<>(requestData, headers), ExtensionQueryResult.class);
 
-            if (result.results != null && result.results.size() > 0) {
-                var item = result.results.get(0);
-                if (item.extensions != null && item.extensions.size() > 0) {
-                    return item.extensions.get(0);
-                }
+        var requestUrl = UrlUtil.createApiUrl(galleryUrl, "extensionquery");
+        var requestData = createRequestData(extension);
+        var headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set(HttpHeaders.ACCEPT, "application/json;api-version=" + API_VERSION);
+        var result = vsCodeIdRestTemplate.postForObject(requestUrl, new HttpEntity<>(requestData, headers), ExtensionQueryResult.class);
+
+        if (result.results() != null && result.results().size() > 0) {
+            var item = result.results().get(0);
+            if (item.extensions() != null && item.extensions().size() > 0) {
+                return item.extensions().get(0);
             }
-        } catch (RestClientException exc) {
-            logger.error("Failed to query extension id from upstream URL", exc);
         }
+
         return null;
     }
 
     private ExtensionQueryParam createRequestData(Extension extension) {
-        var request = new ExtensionQueryParam();
-        var filter = new ExtensionQueryParam.Filter();
-        filter.criteria = Lists.newArrayList();
-        var targetCriterion = new ExtensionQueryParam.Criterion();
-        targetCriterion.filterType = ExtensionQueryParam.Criterion.FILTER_TARGET;
-        targetCriterion.value = "Microsoft.VisualStudio.Code";
-        filter.criteria.add(targetCriterion);
-        var nameCriterion = new ExtensionQueryParam.Criterion();
-        nameCriterion.filterType = ExtensionQueryParam.Criterion.FILTER_EXTENSION_NAME;
-        nameCriterion.value = extension.getNamespace().getName() + "." + extension.getName();
-        filter.criteria.add(nameCriterion);
-        filter.pageNumber = 1;
-        filter.pageSize = 1;
-        request.filters = Lists.newArrayList(filter);
-        return request;
+        var criteria = List.of(
+                new ExtensionQueryParam.Criterion(
+                        ExtensionQueryParam.Criterion.FILTER_TARGET,
+                        "Microsoft.VisualStudio.Code"
+                ),
+                new ExtensionQueryParam.Criterion(
+                        ExtensionQueryParam.Criterion.FILTER_EXTENSION_NAME,
+                        NamingUtil.toExtensionId(extension)
+                )
+        );
+
+        return new ExtensionQueryParam(
+                List.of(new ExtensionQueryParam.Filter(criteria, 1, 1, 0, 0)),
+            0
+        );
     }
-    
 }

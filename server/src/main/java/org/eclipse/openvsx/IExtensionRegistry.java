@@ -9,14 +9,10 @@
  ********************************************************************************/
 package org.eclipse.openvsx;
 
-import org.eclipse.openvsx.json.ExtensionJson;
-import org.eclipse.openvsx.json.NamespaceJson;
-import org.eclipse.openvsx.json.QueryParamJson;
-import org.eclipse.openvsx.json.QueryResultJson;
-import org.eclipse.openvsx.json.ReviewListJson;
-import org.eclipse.openvsx.json.SearchResultJson;
-import org.eclipse.openvsx.search.SearchService;
+import org.eclipse.openvsx.json.*;
+import org.eclipse.openvsx.search.ISearchService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 /**
  * Declaration of the registry API methods that can be accessed without authentication.
@@ -25,16 +21,29 @@ public interface IExtensionRegistry {
 
     NamespaceJson getNamespace(String namespace);
 
-    ExtensionJson getExtension(String namespace, String extension);
+    ExtensionJson getExtension(String namespace, String extensionName, String targetPlatform);
 
-    ExtensionJson getExtension(String namespace, String extension, String version);
+    ExtensionJson getExtension(String namespace, String extensionName, String targetPlatform, String version);
 
-    ResponseEntity<byte[]> getFile(String namespace, String extension, String version, String fileName);
+    VersionsJson getVersions(String namespace, String extension, String targetPlatform, int size, int offset);
+
+    VersionReferencesJson getVersionReferences(String namespace, String extension, String targetPlatform, int size, int offset);
+
+    ResponseEntity<StreamingResponseBody> getFile(String namespace, String extensionName, String targetPlatform, String version, String fileName);
 
     ReviewListJson getReviews(String namespace, String extension);
 
-    SearchResultJson search(SearchService.Options options);
+    SearchResultJson search(ISearchService.Options options);
 
-    QueryResultJson query(QueryParamJson param);
+    QueryResultJson query(QueryRequest request);
 
+    QueryResultJson queryV2(QueryRequestV2 request);
+
+    NamespaceDetailsJson getNamespaceDetails(String namespace);
+
+    ResponseEntity<StreamingResponseBody> getNamespaceLogo(String namespaceName, String fileName);
+
+    String getPublicKey(String publicId);
+
+    RegistryVersionJson getRegistryVersion();
 }

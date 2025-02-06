@@ -8,38 +8,41 @@
  * SPDX-License-Identifier: EPL-2.0
  ********************************************************************************/
 
-import React, { FunctionComponent, useContext, useState } from 'react';
+import React, { FunctionComponent, useContext, useState, useEffect, useRef } from 'react';
 import {
-    Box, Typography, Paper, Button, makeStyles, Dialog, DialogContent, DialogContentText, Link
-} from '@material-ui/core';
+    Box, Typography, Paper, Button, Dialog, DialogContent, DialogContentText, Link
+} from '@mui/material';
 import { UserData, isError, ReportedError } from '../../extension-registry-types';
 import { SanitizedMarkdown } from '../../components/sanitized-markdown';
 import { Timestamp } from '../../components/timestamp';
 import { ButtonWithProgress } from '../../components/button-with-progress';
 import { createAbsoluteURL } from '../../utils';
 import { MainContext } from '../../context';
-import CircularProgress from '@material-ui/core/CircularProgress';
+import CircularProgress from '@mui/material/CircularProgress';
 
-const useStyles = makeStyles(theme => ({
-    paper: {
-        padding: theme.spacing(2)
-    },
-    dialogScrollPaper: {
-        height: '75%',
-        width: '100%'
-    }
-}));
-
-export const UserPublisherAgreement: FunctionComponent<UserPublisherAgreement.Props> = props => {
-    const classes = useStyles();
+export const UserPublisherAgreement: FunctionComponent<UserPublisherAgreementProps> = props => {
     const { service, pageSettings, updateUser, handleError } = useContext(MainContext);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [working, setWorking] = useState(false);
+    const [agreementText, setAgreementText] = useState('');
+    const abortController = useRef<AbortController>(new AbortController());
+
+    useEffect(() => {
+        return () => {
+            abortController.current.abort();
+        };
+    }, []);
+
+    useEffect(() => {
+        if (dialogOpen) {
+            onDialogOpened();
+        }
+    }, [dialogOpen]);
 
     const signPublisherAgreement = async (): Promise<void> => {
         try {
             setWorking(true);
-            const result = await service.signPublisherAgreement();
+            const result = await service.signPublisherAgreement(abortController.current);
             if (isError(result)) {
                 throw result;
             }
@@ -56,19 +59,18 @@ export const UserPublisherAgreement: FunctionComponent<UserPublisherAgreement.Pr
     };
 
     const openPublisherAgreement = () => {
-        if (!pageSettings || !pageSettings.urls.publisherAgreement) {
+        if (!pageSettings.urls.publisherAgreement) {
             handleError({ error: 'Publisher agreement text is not available.' });
         } else {
             setDialogOpen(true);
         }
     };
 
-    const [agreementText, setAgreementText] = useState('');
     const onDialogOpened = async () => {
         const agreementURL = pageSettings.urls.publisherAgreement;
         if (agreementURL) {
             try {
-                const agreementMd = await service.getStaticContent(agreementURL);
+                const agreementMd = await service.getStaticContent(abortController.current, agreementURL);
                 setAgreementText(agreementMd);
             } catch (err) {
                 handleError(err);
@@ -87,7 +89,7 @@ export const UserPublisherAgreement: FunctionComponent<UserPublisherAgreement.Pr
         return null;
     }
     return <>
-        <Paper classes={{ root: classes.paper }} elevation={3}>
+        <Paper sx={{ p: 2 }} elevation={3}>
             {
                 user.publisherAgreement.status === 'signed' ?
                     <Typography variant='body1'>
@@ -98,7 +100,19 @@ export const UserPublisherAgreement: FunctionComponent<UserPublisherAgreement.Pr
                         }
                     </Typography>
                     :
-                    !user.additionalLogins || !user.additionalLogins.find(login => login.provider === 'eclipse') ?
+                    user.additionalLogins?.find(login => login.provider === 'eclipse') ?
+                        <>
+                            <Typography variant='body1'>
+                                You need to sign the Eclipse Foundation Open VSX Publisher Agreement before you can publish
+                                any extension to this registry.
+                            </Typography>
+                            <Box mt={2} display='flex' justifyContent='flex-end'>
+                                <Button onClick={openPublisherAgreement} variant='outlined' color='secondary'>
+                                    Show Publisher Agreement
+                                </Button>
+                            </Box>
+                        </>
+                        :
                         <>
                             <Typography variant='body1'>
                                 You need to sign the Eclipse Foundation Open VSX Publisher Agreement before you can publish
@@ -112,27 +126,13 @@ export const UserPublisherAgreement: FunctionComponent<UserPublisherAgreement.Pr
                                     </Button>
                                 </Link>
                             </Box>
-                        </>
-                        :
-                        <>
-                            <Typography variant='body1'>
-                                You need to sign the Eclipse Foundation Open VSX Publisher Agreement before you can publish
-                                any extension to this registry.
-                            </Typography>
-                            <Box mt={2} display='flex' justifyContent='flex-end'>
-                                <Button onClick={openPublisherAgreement} variant='outlined' color='secondary'>
-                                    Show Publisher Agreement
-                                </Button>
-                            </Box>
                         </>}
         </Paper>
         <Dialog
             open={dialogOpen}
-            onEntered={onDialogOpened}
-            onEscapeKeyDown={onClose}
-            onBackdropClick={onClose}
+            onClose={onClose}
             maxWidth='md'
-            classes={{ paperScrollPaper: classes.dialogScrollPaper }}>
+            sx={{ paperScrollPaper: { height: '75%', width: '100%' } }}>
             <DialogContent>
                 {
                     agreementText ?
@@ -158,8 +158,6 @@ export const UserPublisherAgreement: FunctionComponent<UserPublisherAgreement.Pr
 
 };
 
-export namespace UserPublisherAgreement {
-    export interface Props {
-        user: UserData;
-    }
+export interface UserPublisherAgreementProps {
+    user: UserData;
 }

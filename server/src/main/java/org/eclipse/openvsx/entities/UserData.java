@@ -9,62 +9,62 @@
  ********************************************************************************/
 package org.eclipse.openvsx.entities;
 
+import java.io.Serial;
+import java.io.Serializable;
 import java.util.List;
+import java.util.Objects;
 
-import javax.persistence.Column;
-import javax.persistence.Convert;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-import javax.persistence.OneToMany;
+import jakarta.persistence.*;
 
 import org.eclipse.openvsx.json.UserJson;
 
 @Entity
-public class UserData {
+public class UserData implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
 
     public static final String ROLE_ADMIN = "admin";
     public static final String ROLE_PRIVILEGED = "privileged";
 
     @Id
-    @GeneratedValue
-    long id;
+    @GeneratedValue(generator = "userDataSeq")
+    @SequenceGenerator(name = "userDataSeq", sequenceName = "user_data_seq")
+    private long id;
 
     @Column(length = 32)
-    String role;
+    private String role;
 
-    String loginName;
+    private String loginName;
 
-    String fullName;
+    private String fullName;
 
-    String email;
+    private String email;
 
-    String avatarUrl;
+    private String avatarUrl;
 
     @Column(length = 32)
-    String provider;
+    private String provider;
 
-    String authId;
+    private String authId;
 
-    String providerUrl;
-
-    @OneToMany(mappedBy = "user")
-    List<PersonalAccessToken> tokens;
+    private String providerUrl;
 
     @OneToMany(mappedBy = "user")
-    List<NamespaceMembership> memberships;
+    private List<PersonalAccessToken> tokens;
 
-    @Column(length = 4096)
-    @Convert(converter = EclipseDataConverter.class)
-    EclipseData eclipseData;
+    @OneToMany(mappedBy = "user")
+    private List<NamespaceMembership> memberships;
+
+    private String eclipsePersonId;
 
     @Column(length = 4096)
     @Convert(converter = AuthTokenConverter.class)
-    AuthToken githubToken;
+    private AuthToken githubToken;
 
     @Column(length = 4096)
     @Convert(converter = AuthTokenConverter.class)
-    AuthToken eclipseToken;
+    private AuthToken eclipseToken;
 
 
     /**
@@ -72,11 +72,11 @@ public class UserData {
      */
     public UserJson toUserJson() {
         var json = new UserJson();
-        json.loginName = this.getLoginName();
-        json.fullName = this.getFullName();
-        json.avatarUrl = this.getAvatarUrl();
-        json.homepage = this.getProviderUrl();
-        json.provider = this.getProvider();
+        json.setLoginName(this.getLoginName());
+        json.setFullName(this.getFullName());
+        json.setAvatarUrl(this.getAvatarUrl());
+        json.setHomepage(this.getProviderUrl());
+        json.setProvider(this.getProvider());
         return json;
     }
 
@@ -152,12 +152,12 @@ public class UserData {
         this.providerUrl = providerUrl;
     }
 
-    public EclipseData getEclipseData() {
-        return eclipseData;
+    public String getEclipsePersonId() {
+        return eclipsePersonId;
     }
 
-    public void setEclipseData(EclipseData eclipseData) {
-        this.eclipseData = eclipseData;
+    public void setEclipsePersonId(String eclipsePersonId) {
+        this.eclipsePersonId = eclipsePersonId;
     }
 
     public AuthToken getGithubToken() {
@@ -175,5 +175,33 @@ public class UserData {
     public void setEclipseToken(AuthToken eclipseToken) {
         this.eclipseToken = eclipseToken;
     }
-    
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        UserData userData = (UserData) o;
+        return id == userData.id
+                && Objects.equals(role, userData.role)
+                && Objects.equals(loginName, userData.loginName)
+                && Objects.equals(fullName, userData.fullName)
+                && Objects.equals(email, userData.email)
+                && Objects.equals(avatarUrl, userData.avatarUrl)
+                && Objects.equals(provider, userData.provider)
+                && Objects.equals(authId, userData.authId)
+                && Objects.equals(providerUrl, userData.providerUrl)
+                && Objects.equals(tokens, userData.tokens)
+                && Objects.equals(memberships, userData.memberships)
+                && Objects.equals(eclipsePersonId, userData.eclipsePersonId)
+                && Objects.equals(githubToken, userData.githubToken)
+                && Objects.equals(eclipseToken, userData.eclipseToken);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                id, role, loginName, fullName, email, avatarUrl, provider, authId, providerUrl, tokens, memberships,
+                eclipsePersonId, githubToken, eclipseToken
+        );
+    }
 }

@@ -53,12 +53,14 @@ export interface SearchEntry {
         engines?: { [engine: string]: string };
     }[];
     averageRating?: number;
+    reviewCount?: number;
     downloadCount?: number;
     displayName?: string;
     description?: string;
+    deprecated: boolean;
 }
 
-export const VERSION_ALIASES = ['latest', 'preview'];
+export const VERSION_ALIASES = ['latest', 'pre-release'];
 
 export interface Extension {
     namespaceUrl: UrlString;
@@ -69,6 +71,8 @@ export interface Extension {
     name: string;
     namespace: string;
     version: string;
+    targetPlatform: string;
+    preRelease?: boolean;
     publishedBy: UserData;
     verified: boolean;
     // key: version, value: url
@@ -83,10 +87,11 @@ export interface Extension {
     timestamp: TimestampString;
     preview?: boolean;
     displayName?: string;
+    namespaceDisplayName: string;
     description?: string;
 
     // key: engine, value: version constraint
-    engines?: string[];
+    engines?: Record<string, string>;
     categories?: string[];
     tags?: string[];
     license?: string;
@@ -94,12 +99,23 @@ export interface Extension {
     repository?: string;
     bugs?: string;
     markdown?: 'github' | 'standard';
-    galleryColor?: string;
-    galleryTheme?: 'light' | 'dark';
+    galleryColor: string;
+    galleryTheme: 'light' | 'dark' | '';
     qna?: UrlString | 'marketplace' | 'false';
     badges?: Badge[];
     dependencies?: ExtensionReference[];
     bundledExtensions?: ExtensionReference[];
+
+    // key: target platform, value: download link
+    downloads: { [targetPlatform: string]: UrlString };
+    allTargetPlatformVersions?: VersionTargetPlatforms[];
+
+    deprecated: boolean
+    replacement?: {
+        url: string
+        displayName: string
+    }
+    downloadable: boolean
 }
 
 export interface Badge {
@@ -112,6 +128,11 @@ export interface ExtensionReference {
     namespace: string;
     extension: string;
     version?: string;
+}
+
+export interface VersionTargetPlatforms {
+    version: string;
+    targetPlatforms: string[];
 }
 
 export type StarRating = 1 | 2 | 3 | 4 | 5;
@@ -199,6 +220,19 @@ export interface Namespace {
     verified: boolean;
     membersUrl: UrlString;
     roleUrl: UrlString;
+    detailsUrl: UrlString;
+}
+
+export interface NamespaceDetails {
+    name: string;
+    displayName: string;
+    description?: string;
+    logo?: UrlString;
+    logoBytes?: string;
+    website?: UrlString;
+    supportLink?: UrlString;
+    socialLinks: { [key: string]: UrlString | undefined };
+    extensions?: SearchEntry[];
 }
 
 export interface PublisherInfo {
@@ -207,6 +241,16 @@ export interface PublisherInfo {
     activeAccessTokenNum: number;
 }
 
+export interface TargetPlatformVersion {
+    targetPlatform: string;
+    version: string;
+    checked: boolean;
+}
+
+export interface RegistryVersion {
+    version: string
+}
+
 export type MembershipRole = 'contributor' | 'owner';
-export type SortBy = 'relevance' | 'timestamp' | 'averageRating' | 'downloadCount';
+export type SortBy = 'relevance' | 'timestamp' | 'rating' | 'downloadCount';
 export type SortOrder = 'asc' | 'desc';
