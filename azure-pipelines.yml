@@ -10,6 +10,7 @@ variables:
   containerRegistry: uchimera
   imageRepository: cccs/openvsx
   serverImageRepository: cccs/openvsx/server
+  webuiImageRepository: cccs/openvsx/webui
   buildTimestamp: $[format('{0:yyyyMMddHHmmss}', pipeline.startTime)]
 
 steps:
@@ -32,6 +33,18 @@ steps:
       repository: $(serverImageRepository)
       dockerfile: 'server/Dockerfile'
       buildContext: 'server/'
+      tags: |
+        latest
+  - task: Docker@2
+    displayName: Build WebUI Image
+    env:
+      DOCKER_BUILDKIT: 1
+      BUILDKIT_PROGRESS: plain
+    inputs:
+      command: 'build'
+      repository: $(webuiImageRepository)
+      dockerfile: 'webui/Dockerfile'
+      buildContext: 'webui/'
       tags: |
         latest
   - task: Docker@2
