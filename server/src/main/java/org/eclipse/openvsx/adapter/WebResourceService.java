@@ -11,10 +11,12 @@ package org.eclipse.openvsx.adapter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.eclipse.openvsx.cache.CacheService;
+import org.eclipse.openvsx.cache.FilesCacheKeyGenerator;
 import org.eclipse.openvsx.entities.FileResource;
 import org.eclipse.openvsx.repositories.RepositoryService;
 import org.eclipse.openvsx.storage.StorageUtilService;
 import org.eclipse.openvsx.util.ErrorResultException;
+import org.eclipse.openvsx.util.FileUtil;
 import org.eclipse.openvsx.util.NamingUtil;
 import org.eclipse.openvsx.util.UrlUtil;
 import org.slf4j.Logger;
@@ -23,9 +25,9 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.stream.Collectors;
 import java.util.zip.ZipFile;
 
@@ -40,11 +42,18 @@ public class WebResourceService {
     private final StorageUtilService storageUtil;
     private final RepositoryService repositories;
     private final CacheService cache;
+    private final FilesCacheKeyGenerator filesCacheKeyGenerator;
 
-    public WebResourceService(StorageUtilService storageUtil, RepositoryService repositories, CacheService cache) {
+    public WebResourceService(
+            StorageUtilService storageUtil,
+            RepositoryService repositories,
+            CacheService cache,
+            FilesCacheKeyGenerator filesCacheKeyGenerator
+    ) {
         this.storageUtil = storageUtil;
         this.repositories = repositories;
         this.cache = cache;
+        this.filesCacheKeyGenerator = filesCacheKeyGenerator;
     }
 
     @Cacheable(value = CACHE_WEB_RESOURCE_FILES, keyGenerator = GENERATOR_FILES)
@@ -54,12 +63,7 @@ public class WebResourceService {
             return null;
         }
 
-        Path path;
-        try {
-            path = storageUtil.getCachedFile(download);
-        } catch(IOException e) {
-            throw new ErrorResultException("Failed to get file for download " + NamingUtil.toLogFormat(download.getExtension()));
-        }
+        var path = storageUtil.getCachedFile(download);
         if(path == null) {
             return null;
         }
@@ -74,10 +78,14 @@ public class WebResourceService {
             if(fileEntry != null) {
                 var fileExtIndex = fileEntry.getName().lastIndexOf('.');
                 var fileExt = fileExtIndex != -1 ? fileEntry.getName().substring(fileExtIndex) : "";
-                var file = Files.createTempFile("webresource_", fileExt);
-                try(var in = zip.getInputStream(fileEntry)) {
-                    Files.copy(in, file, StandardCopyOption.REPLACE_EXISTING);
-                }
+                var file = filesCacheKeyGenerator.generateCachedWebResourcePath(namespace, extension, targetPlatform, version, name, fileExt);
+                FileUtil.writeSync(file, (p) -> {
+                    try (var in = zip.getInputStream(fileEntry)) {
+                        Files.copy(in, p);
+                    } catch(IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                });
 
                 return file;
             } else if (browse) {
@@ -93,19 +101,26 @@ public class WebResourceService {
                     return null;
                 }
 
-                var file = Files.createTempFile("webresource_", ".unpkg.json");
-                var baseUrl = UrlUtil.createApiUrl(UrlUtil.getBaseUrl(), "vscode", "unpkg", namespace, extension, version);
-                var mapper = new ObjectMapper();
-                var node = mapper.createArrayNode();
-                for(var entry : dirEntries) {
-                    node.add(baseUrl + "/" + entry);
-                }
-                mapper.writeValue(file.toFile(), node);
+                var file = filesCacheKeyGenerator.generateCachedWebResourcePath(namespace, extension, targetPlatform, version, name, ".unpkg.json");
+                FileUtil.writeSync(file, (p) -> {
+                    var baseUrl = UrlUtil.createApiUrl(UrlUtil.getBaseUrl(), "vscode", "unpkg", namespace, extension, version);
+                    var mapper = new ObjectMapper();
+                    var node = mapper.createArrayNode();
+                    for (var entry : dirEntries) {
+                        node.add(baseUrl + "/" + entry);
+                    }
+                    try {
+                        mapper.writeValue(p.toFile(), node);
+                    } catch(IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                });
+
                 return file;
             } else {
                 return null;
             }
-        } catch (IOException e) {
+        } catch (IOException | UncheckedIOException e) {
             throw new ErrorResultException("Failed to read extension files for " + NamingUtil.toLogFormat(download.getExtension()));
         }
     }

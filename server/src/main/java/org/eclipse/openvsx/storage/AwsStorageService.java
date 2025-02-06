@@ -11,6 +11,7 @@
 package org.eclipse.openvsx.storage;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
@@ -21,8 +22,10 @@ import java.util.List;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.eclipse.openvsx.cache.FilesCacheKeyGenerator;
 import org.eclipse.openvsx.entities.FileResource;
 import org.eclipse.openvsx.entities.Namespace;
+import org.eclipse.openvsx.util.FileUtil;
 import org.eclipse.openvsx.util.TempFile;
 import org.eclipse.openvsx.util.UrlUtil;
 import org.springframework.beans.factory.annotation.Value;
@@ -47,6 +50,7 @@ import static org.eclipse.openvsx.cache.CacheService.GENERATOR_FILES;
 public class AwsStorageService implements IStorageService {
 
     private final FileCacheDurationConfig fileCacheDurationConfig;
+    private final FilesCacheKeyGenerator filesCacheKeyGenerator;
 
     @Value("${ovsx.storage.aws.access-key-id:}")
     String accessKeyId;
@@ -68,8 +72,9 @@ public class AwsStorageService implements IStorageService {
 
     private S3Client s3Client;
 
-    public AwsStorageService(FileCacheDurationConfig fileCacheDurationConfig) {
+    public AwsStorageService(FileCacheDurationConfig fileCacheDurationConfig, FilesCacheKeyGenerator filesCacheKeyGenerator) {
         this.fileCacheDurationConfig = fileCacheDurationConfig;
+        this.filesCacheKeyGenerator = filesCacheKeyGenerator;
     }
 
     protected S3Client getS3Client() {
@@ -243,17 +248,22 @@ public class AwsStorageService implements IStorageService {
 
     @Override
     @Cacheable(value = CACHE_EXTENSION_FILES, keyGenerator = GENERATOR_FILES)
-    public Path getCachedFile(FileResource resource) throws IOException {
+    public Path getCachedFile(FileResource resource) {
         var objectKey = getObjectKey(resource);
         var request = GetObjectRequest.builder()
                 .bucket(bucket)
                 .key(objectKey)
                 .build();
 
-        var path = Files.createTempFile("cached_file", null);
-        try (var stream = getS3Client().getObject(request)) {
-            Files.copy(stream, path, StandardCopyOption.REPLACE_EXISTING);
-        }
+        var path = filesCacheKeyGenerator.generateCachedExtensionPath(resource);
+        FileUtil.writeSync(path, (p) -> {
+            try (var stream = getS3Client().getObject(request)) {
+                Files.copy(stream, p);
+            } catch(IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        });
+
         return path;
     }
 

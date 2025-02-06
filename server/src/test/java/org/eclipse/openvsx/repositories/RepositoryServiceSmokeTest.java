@@ -110,9 +110,7 @@ class RepositoryServiceSmokeTest {
                 () -> repositories.findDownloadsByStorageTypeAndName("storageType", STRING_LIST),
                 () -> repositories.findExtension("name", namespace),
                 () -> repositories.findExtension("name", "namespace"),
-                () -> repositories.findExtensionByPublicId("publicId"),
                 () -> repositories.findExtensions(namespace),
-                () -> repositories.findExtensions("name"),
                 () -> repositories.findFileByType(extVersion, "type"),
                 () -> repositories.findFiles(extVersion),
                 () -> repositories.findFilesByStorageType("storageType"),
@@ -128,7 +126,6 @@ class RepositoryServiceSmokeTest {
                 () -> repositories.findVersion("version", "targetPlatform", extension),
                 () -> repositories.findVersion("version", "targetPlatform", "extensionName", "namespace"),
                 () -> repositories.findVersions(extension),
-                () -> repositories.findVersions("version", extension),
                 () -> repositories.findVersionsByAccessToken(personalAccessToken, true),
                 () -> repositories.getMaxExtensionDownloadCount(),
                 () -> repositories.getOldestExtensionTimestamp(),
@@ -137,9 +134,7 @@ class RepositoryServiceSmokeTest {
                 () -> repositories.findFilesByType(List.of(extVersion), STRING_LIST),
                 () -> repositories.countVersions(extension),
                 () -> repositories.topMostDownloadedExtensions(1),
-                () -> repositories.deleteFileResources(extVersion, "download"),
                 () -> repositories.countActiveAccessTokens(userData),
-                () -> repositories.findNotMigratedResources(),
                 () -> repositories.findNotMigratedPreReleases(),
                 () -> repositories.findNotMigratedRenamedDownloads(),
                 () -> repositories.findNotMigratedVsixManifests(),
@@ -150,7 +145,6 @@ class RepositoryServiceSmokeTest {
                 () -> repositories.topNamespaceExtensions(1),
                 () -> repositories.topNamespaceExtensionVersions(1),
                 () -> repositories.findFileResourcesByExtensionVersionIdAndType(LONG_LIST, STRING_LIST),
-                () -> repositories.findResourceFileResources(extVersion, "prefix"),
                 () -> repositories.findActiveExtensionVersions(LONG_LIST, "targetPlatform"),
                 () -> repositories.findActiveExtension("name", "namespaceName"),
                 () -> repositories.findActiveExtensionsById(LONG_LIST),
@@ -204,10 +198,8 @@ class RepositoryServiceSmokeTest {
                 () -> repositories.deleteFiles(extVersion),
                 () -> repositories.findExtensionTargetPlatforms(extension),
                 () -> repositories.deactivateKeyPairs(),
-                () -> repositories.findActiveExtensionVersion("version", "extensionName", "namespaceName"),
                 () -> repositories.findActiveAccessTokens(userData),
                 () -> repositories.isAdminToken("tokenValue"),
-                () -> repositories.findFileByTypeAndName("namespaceName", "extensionName", "targetPlatform", "version", "type", "name"),
                 () -> repositories.findLatestVersions(List.of(1L)),
                 () -> repositories.hasSameVersion(extVersion),
                 () -> repositories.hasActiveReview(extension, userData),
@@ -228,7 +220,8 @@ class RepositoryServiceSmokeTest {
                 () -> repositories.findDeprecatedExtensions(extension),
                 () -> repositories.findLatestReplacement(1L, null, false, false),
                 () -> repositories.findNotMigratedLocalNamespaceLogos(),
-                () -> repositories.findNotMigratedLocalFileResourceContent()
+                () -> repositories.findNotMigratedLocalFileResourceContent(),
+                () -> repositories.findNotMigratedFileResourceTypeResource()
         );
 
         // check that we did not miss anything

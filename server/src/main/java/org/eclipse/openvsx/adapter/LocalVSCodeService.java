@@ -56,11 +56,6 @@ public class LocalVSCodeService implements IVSCodeService {
     private final WebResourceService webResources;
     private final CacheService cache;
 
-    private final StreamingResponseBody builtinExtensionResponse = outputStream -> {
-        var message = "Built-in extension namespace '" + BuiltInExtensionUtil.getBuiltInNamespace() + "' not allowed";
-        outputStream.write(message.getBytes(StandardCharsets.UTF_8));
-    };
-
     @Value("${ovsx.webui.url:}")
     String webuiUrl;
 
@@ -284,7 +279,7 @@ public class LocalVSCodeService implements IVSCodeService {
             String restOfTheUrl
     ) {
         if(BuiltInExtensionUtil.isBuiltIn(namespace)) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(builtinExtensionResponse);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(builtinExtensionResponse());
         }
 
         var asset = (restOfTheUrl != null && !restOfTheUrl.isEmpty()) ? (assetType + "/" + restOfTheUrl) : assetType;
@@ -342,7 +337,7 @@ public class LocalVSCodeService implements IVSCodeService {
         }
         if(!Files.exists(file)) {
             logger.error("File doesn't exist {}", file);
-            cache.evictWebResourceFile(namespaceName, extensionName, null, version, name);
+            cache.evictWebResourceFile(namespaceName, extensionName, targetPlatform, version, name);
             throw new NotFoundException();
         }
         return file;
@@ -350,6 +345,10 @@ public class LocalVSCodeService implements IVSCodeService {
 
     private String builtinExtensionMessage() {
         return "Built-in extension namespace '" + BuiltInExtensionUtil.getBuiltInNamespace() + "' not allowed";
+    }
+
+    private StreamingResponseBody builtinExtensionResponse() {
+        return (out) -> out.write(builtinExtensionMessage().getBytes(StandardCharsets.UTF_8));
     }
 
     @Override
@@ -396,7 +395,7 @@ public class LocalVSCodeService implements IVSCodeService {
     @Override
     public ResponseEntity<StreamingResponseBody> browse(String namespaceName, String extensionName, String version, String path) {
         if(BuiltInExtensionUtil.isBuiltIn(namespaceName)) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(builtinExtensionResponse);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(builtinExtensionResponse());
         }
 
         var file = getWebResource(namespaceName, extensionName, null, version, path, true);

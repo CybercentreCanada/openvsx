@@ -58,27 +58,6 @@ public class FileResourceJooqRepository {
                 .map(this::toFileResource);
     }
 
-    public List<FileResource> findAllResources(ExtensionVersion extVersion, String prefix) {
-        return dsl.select(
-                    FILE_RESOURCE.ID,
-                    FILE_RESOURCE.EXTENSION_ID,
-                    FILE_RESOURCE.NAME,
-                    FILE_RESOURCE.TYPE,
-                    FILE_RESOURCE.STORAGE_TYPE
-                )
-                .from(FILE_RESOURCE)
-                .where(FILE_RESOURCE.TYPE.eq(FileResource.RESOURCE))
-                .and(FILE_RESOURCE.EXTENSION_ID.eq(extVersion.getId()))
-                .and(FILE_RESOURCE.NAME.startsWith(prefix))
-                .fetch()
-                .map(row -> {
-                    var fileResource = toFileResource(row);
-                    fileResource.setStorageType(row.get(FILE_RESOURCE.STORAGE_TYPE));
-                    fileResource.setExtension(extVersion);
-                    return fileResource;
-                });
-    }
-
     private FileResource toFileResource(Record row) {
         var extVersion = new ExtensionVersion();
         extVersion.setId(row.get(FILE_RESOURCE.EXTENSION_ID));
@@ -114,16 +93,6 @@ public class FileResourceJooqRepository {
         var onlyPreRelease = VersionAlias.PRE_RELEASE.equals(version);
         var query = findByQuery(namespace, extension, version, targetPlatform, onlyPreRelease);
         query.addConditions(FILE_RESOURCE.TYPE.eq(type));
-        return query.fetchOne(this::mapFindByQueryResult);
-    }
-
-    public FileResource findByTypeAndName(String namespace, String extension, String targetPlatform, String version, String type, String name) {
-        var onlyPreRelease = VersionAlias.PRE_RELEASE.equals(version);
-        var query = findByQuery(namespace, extension, version, targetPlatform, onlyPreRelease);
-        query.addConditions(
-                FILE_RESOURCE.TYPE.eq(type),
-                FILE_RESOURCE.NAME.equalIgnoreCase(name)
-        );
         return query.fetchOne(this::mapFindByQueryResult);
     }
 

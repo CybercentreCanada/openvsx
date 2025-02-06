@@ -134,10 +134,6 @@ public class RepositoryService {
         return extensionRepo.findByNameIgnoreCaseAndNamespaceNameIgnoreCase(name, namespace);
     }
 
-    public Extension findExtensionByPublicId(String publicId) {
-        return extensionRepo.findByPublicId(publicId);
-    }
-
     public Streamable<Extension> findActiveExtensions(Namespace namespace) {
         return extensionRepo.findByNamespaceAndActiveTrueOrderByNameAsc(namespace);
     }
@@ -148,10 +144,6 @@ public class RepositoryService {
 
     public Streamable<Extension> findExtensions(Namespace namespace) {
         return extensionRepo.findByNamespace(namespace);
-    }
-
-    public Streamable<Extension> findExtensions(String name) {
-        return extensionRepo.findByNameIgnoreCase(name);
     }
 
     public Streamable<Extension> findAllActiveExtensions() {
@@ -180,10 +172,6 @@ public class RepositoryService {
 
     public Streamable<ExtensionVersion> findVersions(Extension extension) {
          return extensionVersionRepo.findByExtension(extension);
-    }
-
-    public Streamable<ExtensionVersion> findVersions(String version, Extension extension) {
-        return extensionVersionRepo.findByVersionAndExtension(version, extension);
     }
 
     public Streamable<ExtensionVersion> findActiveVersions(Extension extension) {
@@ -254,10 +242,6 @@ public class RepositoryService {
         return fileResourceJooqRepo.findByName(namespace, extension, targetPlatform, version, name);
     }
 
-    public FileResource findFileByTypeAndName(String namespace, String extension, String targetPlatform, String version, String type, String name) {
-        return fileResourceJooqRepo.findByTypeAndName(namespace, extension, targetPlatform, version, type, name);
-    }
-
     public Streamable<FileResource> findDownloadsByStorageTypeAndName(String storageType, Collection<String> names) {
         return fileResourceRepo.findByTypeAndStorageTypeAndNameIgnoreCaseIn(DOWNLOAD, storageType, names);
     }
@@ -267,18 +251,10 @@ public class RepositoryService {
     }
 
     public FileResource findFileByType(ExtensionVersion extVersion, String type) {
-        if(FileResource.RESOURCE.equals(type)) {
-            throw new IllegalArgumentException("There are multiple files of type: " + FileResource.RESOURCE);
-        }
-
         return fileResourceRepo.findByExtensionAndType(extVersion, type);
     }
 
     public FileResource findFileByType(String namespace, String extension, String targetPlatform, String version, String type) {
-        if(FileResource.RESOURCE.equals(type)) {
-            throw new IllegalArgumentException("There are multiple files of type: " + FileResource.RESOURCE);
-        }
-
         return fileResourceJooqRepo.findByType(namespace, extension, targetPlatform, version, type);
     }
 
@@ -406,16 +382,8 @@ public class RepositoryService {
         return extensionVersionJooqRepo.findAllActiveByExtensionIdAndTargetPlatform(extensionIds, targetPlatform);
     }
 
-    public ExtensionVersion findActiveExtensionVersion(String version, String extensionName, String namespaceName) {
-        return extensionVersionJooqRepo.findActiveByVersionAndExtensionNameAndNamespaceName(version, extensionName, namespaceName);
-    }
-
     public List<FileResource> findFileResourcesByExtensionVersionIdAndType(Collection<Long> extensionVersionIds, Collection<String> types) {
         return fileResourceJooqRepo.findAll(extensionVersionIds, types);
-    }
-
-    public List<FileResource> findResourceFileResources(ExtensionVersion extVersion, String prefix) {
-        return fileResourceJooqRepo.findAllResources(extVersion, prefix);
     }
 
     public List<NamespaceMembership> findNamespaceMemberships(Collection<Long> namespaceIds) {
@@ -474,16 +442,8 @@ public class RepositoryService {
         return extensionVersionRepo.findByVersionAndExtensionNameIgnoreCaseAndExtensionNamespaceNameIgnoreCase(version, extensionName, namespaceName);
     }
 
-    public void deleteFileResources(ExtensionVersion extVersion, String type) {
-        fileResourceRepo.deleteByExtensionAndType(extVersion, type);
-    }
-
     public int countVersions(Extension extension) {
         return extensionVersionRepo.countByExtension(extension);
-    }
-
-    public Streamable<MigrationItem> findNotMigratedResources() {
-        return findNotMigratedItems("V1_23__FileResource_Extract_Resources.sql");
     }
 
     public Streamable<MigrationItem> findNotMigratedPreReleases() {
@@ -516,6 +476,10 @@ public class RepositoryService {
 
     public Iterable<MigrationItem> findNotMigratedLocalFileResourceContent() {
         return findNotMigratedItems("V1_48__Local_Storage_FileResource.sql");
+    }
+
+    public Iterable<MigrationItem> findNotMigratedFileResourceTypeResource() {
+        return findNotMigratedItems("V1_50_FileResource_Remove_Resource.sql");
     }
 
     private Streamable<MigrationItem> findNotMigratedItems(String migrationScript) {
