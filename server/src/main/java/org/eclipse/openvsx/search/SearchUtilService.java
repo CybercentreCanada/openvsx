@@ -25,19 +25,18 @@ import java.util.List;
 public class SearchUtilService implements ISearchService {
 
     private final DatabaseSearchService databaseSearchService;
-    private final ElasticSearchService elasticSearchService;
+    // private final ElasticSearchService elasticSearchService;
 
     public SearchUtilService(
             DatabaseSearchService databaseSearchService,
-            ElasticSearchService elasticSearchService
+            // ElasticSearchService elasticSearchService
     ) {
         this.databaseSearchService = databaseSearchService;
-        this.elasticSearchService = elasticSearchService;
+        // this.elasticSearchService = elasticSearchService;
     }
 
     public boolean isEnabled() {
-        return false;
-        // return this.databaseSearchService.isEnabled() || this.elasticSearchService.isEnabled();
+        return this.databaseSearchService.isEnabled();
     }
 
     /**
@@ -45,23 +44,18 @@ public class SearchUtilService implements ISearchService {
      * configuration error.
      */
     protected ISearchService getImplementation() {
-        if (databaseSearchService.isEnabled() && elasticSearchService.isEnabled()) {
-            throw new IllegalStateException(
-                    "Only one search engine can be enabled at a time. Here both elasticsearch and database search are enabled.");
-        }
+        // if (databaseSearchService.isEnabled() && elasticSearchService.isEnabled()) {
+        //     throw new IllegalStateException(
+        //             "Only one search engine can be enabled at a time. Here both elasticsearch and database search are enabled.");
+        // }
 
-        if (this.databaseSearchService.isEnabled()) {
-            return this.databaseSearchService;
-        }
-
-        // return default implementation which is elastic search
-        return this.elasticSearchService;
+        return this.databaseSearchService;
 
     }
 
-    public SearchHits<ExtensionSearch> search(ElasticSearchService.Options options) {
-        return getImplementation().search(options);
-    }
+    // public SearchHits<ExtensionSearch> search(ElasticSearchService.Options options) {
+    //     return getImplementation().search(options);
+    // }
 
     @Override
     public void updateSearchIndex(boolean clear) {
