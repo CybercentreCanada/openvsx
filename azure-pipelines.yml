@@ -34,7 +34,8 @@ steps:
       dockerfile: 'server/Dockerfile'
       buildContext: 'server/'
       tags: |
-        latest
+        $(BRANCH_NAME)
+        $(BRANCH_NAME)_$(buildTimestamp)_b$(Build.BuildId)
   - task: Docker@2
     displayName: Build WebUI Image
     env:
@@ -46,7 +47,8 @@ steps:
       dockerfile: 'webui/Dockerfile'
       buildContext: 'webui/'
       tags: |
-        latest
+        $(BRANCH_NAME)
+        $(BRANCH_NAME)_$(buildTimestamp)_b$(Build.BuildId)
   - task: Docker@2
     displayName: Build complete image
     env:
