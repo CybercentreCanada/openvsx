@@ -16,9 +16,7 @@ RUN apt-get update \
 RUN curl -sSL https://deb.nodesource.com/setup_20.x | bash - \
   && apt-get install -y nodejs
 
-RUN npm install --global yarn@1.*
-
-ENV NODE_OPTIONS="--openssl-legacy-provider"
+RUN npm install --global yarn@4.*
 
 COPY . /workdir
 RUN /usr/bin/yarn --cwd webui \
