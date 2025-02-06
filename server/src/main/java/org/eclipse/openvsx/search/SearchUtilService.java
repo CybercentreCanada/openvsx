@@ -28,7 +28,7 @@ public class SearchUtilService implements ISearchService {
     // private final ElasticSearchService elasticSearchService;
 
     public SearchUtilService(
-            DatabaseSearchService databaseSearchService,
+            DatabaseSearchService databaseSearchService
             // ElasticSearchService elasticSearchService
     ) {
         this.databaseSearchService = databaseSearchService;
