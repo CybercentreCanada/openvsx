@@ -26,6 +26,6 @@ RUN /usr/bin/yarn --cwd webui \
   && /usr/bin/yarn --cwd webui build:default
 
 # Use the locally built server image instead of pulling from a registry
-FROM $(SERVER_IMAGE_NAME):latest
+FROM $SERVER_IMAGE_NAME:latest
 
 COPY --from=builder --chown=openvsx:openvsx /workdir/webui/static/ BOOT-INF/classes/static/
