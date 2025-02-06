@@ -59,7 +59,7 @@ public class ElasticSearchService implements ISearchService {
     private final RelevanceService relevanceService;
     private final JobRequestScheduler scheduler;
 
-    @Value("${ovsx.elasticsearch.enabled:true}")
+    @Value("${ovsx.elasticsearch.enabled:false}")
     boolean enableSearch;
     @Value("${ovsx.elasticsearch.clear-on-start:false}")
     boolean clearOnStart;
@@ -77,7 +77,7 @@ public class ElasticSearchService implements ISearchService {
         this.relevanceService = relevanceService;
         this.scheduler = scheduler;
     }
-    
+
     public boolean isEnabled() {
         return enableSearch;
     }
@@ -149,7 +149,7 @@ public class ElasticSearchService implements ISearchService {
                 locked = true;
                 indexOps.create();
             }
-            
+
             // Scan all extensions and create index queries
             var allExtensions = repositories.findAllActiveExtensions();
             if (allExtensions.isEmpty()) {
