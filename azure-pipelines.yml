@@ -31,7 +31,7 @@ steps:
       command: 'build'
       repository: $(serverImageRepository)
       dockerfile: 'server/Dockerfile'
-      buildContext: '.'
+      buildContext: 'server/'
       tags: |
         latest
   - task: Docker@2
