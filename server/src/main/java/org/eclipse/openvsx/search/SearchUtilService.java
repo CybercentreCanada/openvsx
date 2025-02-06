@@ -36,7 +36,8 @@ public class SearchUtilService implements ISearchService {
     }
 
     public boolean isEnabled() {
-        return this.databaseSearchService.isEnabled() || this.elasticSearchService.isEnabled();
+        return false;
+        // return this.databaseSearchService.isEnabled() || this.elasticSearchService.isEnabled();
     }
 
     /**

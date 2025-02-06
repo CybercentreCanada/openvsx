@@ -59,7 +59,7 @@ public class ElasticSearchService implements ISearchService {
     private final RelevanceService relevanceService;
     private final JobRequestScheduler scheduler;
 
-    @Value("${ovsx.elasticsearch.enabled:false}")
+    @Value("${ovsx.elasticsearch.enabled:true}")
     boolean enableSearch;
     @Value("${ovsx.elasticsearch.clear-on-start:false}")
     boolean clearOnStart;
