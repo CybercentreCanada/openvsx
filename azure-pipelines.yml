@@ -8,7 +8,8 @@ pool: cybertron-build-pool
 
 variables:
   containerRegistry: uchimera
-  imageRepository: cccs/openvsx/webui
+  imageRepository: cccs/openvsx/
+  serverImageRepository: cccs/openvsx/server/
   buildTimestamp: $[format('{0:yyyyMMddHHmmss}', pipeline.startTime)]
 
 steps:
@@ -22,7 +23,19 @@ steps:
       command: login
       containerRegistry: $(containerRegistry)
   - task: Docker@2
-    displayName: Build image
+    displayName: Build server image
+    env:
+      DOCKER_BUILDKIT: 1
+      BUILDKIT_PROGRESS: plain
+    inputs:
+      command: 'build'
+      repository: $(serverImageRepository)
+      dockerfile: 'server/Dockerfile'
+      buildContext: '.'
+      tags: |
+        latest
+  - task: Docker@2
+    displayName: Build complete image
     env:
       DOCKER_BUILDKIT: 1
       BUILDKIT_PROGRESS: plain
@@ -35,7 +48,7 @@ steps:
         $(BRANCH_NAME)
         $(BRANCH_NAME)_$(buildTimestamp)_b$(Build.BuildId)
   - task: Docker@2
-    displayName: Tag and push image to $(containerRegistry)
+    displayName: Tag and push complete image to $(containerRegistry)
     inputs:
       command: 'push'
       repository: $(imageRepository)
