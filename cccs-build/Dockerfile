@@ -1,5 +1,5 @@
 # Builder image to compile the website
-FROM ubuntu as builder
+FROM ubuntu AS builder
 
 WORKDIR /workdir
 
@@ -26,7 +26,6 @@ RUN /usr/bin/yarn --cwd webui \
   && /usr/bin/yarn --cwd webui build:default
 
 # Use the locally built server image instead of pulling from a registry
-ARG SERVER_IMAGE_NAME
-FROM $SERVER_IMAGE_NAME:latest
+FROM cccs/openvsx/server:latest
 
 COPY --from=builder --chown=openvsx:openvsx /workdir/webui/static/ BOOT-INF/classes/static/

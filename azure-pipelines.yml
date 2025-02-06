@@ -47,7 +47,6 @@ steps:
       tags: |
         $(BRANCH_NAME)
         $(BRANCH_NAME)_$(buildTimestamp)_b$(Build.BuildId)
-      arguments: '--build-arg SERVER_IMAGE_NAME=$(serverImageRepository)'
   - task: Docker@2
     displayName: Tag and push complete image to $(containerRegistry)
     inputs:
