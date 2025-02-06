@@ -8,8 +8,8 @@ pool: cybertron-build-pool
 
 variables:
   containerRegistry: uchimera
-  imageRepository: cccs/openvsx/
-  serverImageRepository: cccs/openvsx/server/
+  imageRepository: cccs/openvsx
+  serverImageRepository: cccs/openvsx/server
   buildTimestamp: $[format('{0:yyyyMMddHHmmss}', pipeline.startTime)]
 
 steps:
