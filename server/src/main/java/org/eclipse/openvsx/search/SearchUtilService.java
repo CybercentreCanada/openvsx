@@ -28,7 +28,7 @@ public class SearchUtilService implements ISearchService {
     private final ElasticSearchService elasticSearchService;
 
     public SearchUtilService(
-            DatabaseSearchService databaseSearchService
+            DatabaseSearchService databaseSearchService,
             ElasticSearchService elasticSearchService
     ) {
         this.databaseSearchService = databaseSearchService;
@@ -36,7 +36,7 @@ public class SearchUtilService implements ISearchService {
     }
 
     public boolean isEnabled() {
-        return this.databaseSearchService.isEnabled();
+        return this.databaseSearchService.isEnabled() || this.elasticSearchService.isEnabled();
     }
 
     /**
@@ -49,7 +49,12 @@ public class SearchUtilService implements ISearchService {
                     "Only one search engine can be enabled at a time. Here both elasticsearch and database search are enabled.");
         }
 
-        return this.databaseSearchService;
+        if (this.databaseSearchService.isEnabled()) {
+            return this.databaseSearchService;
+        }
+
+        // return default implementation which is elastic search
+        return this.elasticSearchService;
 
     }
 
