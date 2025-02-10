@@ -53,9 +53,9 @@ public class SearchUtilService implements ISearchService {
 
     }
 
-    // public SearchHits<ExtensionSearch> search(ElasticSearchService.Options options) {
-    //     return getImplementation().search(options);
-    // }
+    public SearchHits<ExtensionSearch> search(ElasticSearchService.Options options) {
+        return getImplementation().search(options);
+    }
 
     @Override
     public void updateSearchIndex(boolean clear) {
