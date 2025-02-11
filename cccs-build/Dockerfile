@@ -26,7 +26,8 @@ RUN yarn add express@4.21.0
 RUN yarn add express-rate-limit@7.4.0
 
 # Create Supervisor config file
-RUN echo '[supervisord]
+RUN cat <<EOF > /etc/supervisor/conf.d/supervisord.conf
+[supervisord]
 nodaemon=true
 
 [program:spring-boot]
@@ -42,7 +43,7 @@ autostart=true
 autorestart=true
 stdout_logfile=/dev/stdout
 stderr_logfile=/dev/stderr
-' > /etc/supervisor/conf.d/supervisord.conf
+EOF
 
 # Expose ports for both services
 EXPOSE 8080 3000
