@@ -2,7 +2,12 @@ ARG OPENVSX_IMAGES_TAG
 FROM uchimera.azurecr.io/cccs/openvsx/webui:${OPENVSX_IMAGES_TAG} AS webui
 FROM uchimera.azurecr.io/cccs/openvsx/server:${OPENVSX_IMAGES_TAG} AS server
 
-RUN apt-get update && apt-get install -y supervisor
+USER root
+
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y supervisor \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create Supervisor config directory
 RUN mkdir -p /etc/supervisor/conf.d/
@@ -10,6 +15,8 @@ RUN mkdir -p /etc/supervisor/conf.d/
 RUN curl -sSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs \
     && npm install -g yarn
+
+USER openvsx
 
 # Copy the UI assets
 COPY --from=webui /home/node/webui/static/ /home/node/webui/static/
