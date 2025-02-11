@@ -6,11 +6,11 @@ FROM ubuntu AS builder
 
 RUN apt-get update \
     && apt-get install --no-install-recommends -y \
-        bash \
-        ca-certificates \
-        git \
-        curl \
-        supervisor \
+    bash \
+    ca-certificates \
+    git \
+    curl \
+    supervisor \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -38,7 +38,7 @@ RUN yarn add express@4.21.0
 RUN yarn add express-rate-limit@7.4.0
 
 # Create Supervisor config file
-COPY ./supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY cccs-build/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Expose ports for both services
 EXPOSE 8080 3000
