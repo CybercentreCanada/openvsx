@@ -19,9 +19,9 @@ RUN curl -sSL https://deb.nodesource.com/setup_20.x | bash - \
 USER openvsx
 
 # Copy the UI assets
-COPY --from=webui /home/node/webui/static/ /home/node/webui/static/
+COPY --from=webui --chown=openvsx:openvsx /home/node/webui/static/ /home/node/webui/static/
 # Copy the Express server
-COPY --from=webui /home/node/webui/lib/default/ /home/node/webui/lib/default/
+COPY --from=webui --chown=openvsx:openvsx /home/node/webui/lib/default/ /home/node/webui/lib/default/
 
 # Set working directory for UI
 WORKDIR /home/node/webui
