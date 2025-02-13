@@ -20,7 +20,6 @@ USER openvsx
 
 # Copy the UI assets
 COPY --from=webui --chown=openvsx:openvsx /home/node/webui/static/ /home/node/webui/static/
-COPY --from=webui --chown=openvsx:openvsx /home/node/webui/static/ /BOOT-INF/classes/static/
 # Copy the Express server
 COPY --from=webui --chown=openvsx:openvsx /home/node/webui/lib/default/ /home/node/webui/lib/default/
 
@@ -30,6 +29,8 @@ WORKDIR /home/node/webui
 # Ensure dependencies exist for Express
 RUN yarn add express@4.21.0
 RUN yarn add express-rate-limit@7.4.0
+
+WORKDIR /home/openvsx/server
 
 # Create Supervisor config file
 COPY cccs-build/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
