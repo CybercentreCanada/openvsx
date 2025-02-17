@@ -609,6 +609,7 @@ public class RegistryAPI {
             @PathVariable @Parameter(description = "Extension version", example = "2.15.4")
             String version
     ) {
+        logger.info("Getting file in RegistryAPI.java");
         var fileName = UrlUtil.extractWildcardPath(request, "/api/{namespace}/{extension}/{version}/file/**");
         for (var registry : getRegistries()) {
             try {
@@ -753,7 +754,7 @@ public class RegistryAPI {
             @RequestParam(defaultValue = "0")
             @Parameter(description = "Number of entries to skip (usually a multiple of the page size)", schema = @Schema(type = "integer", minimum = "0", defaultValue = "0"))
             int offset,
-            @RequestParam(defaultValue = "desc") 
+            @RequestParam(defaultValue = "desc")
             @Parameter(description = "Descending or ascending sort order", schema = @Schema(type = "string", allowableValues = {"asc", "desc"}))
             String sortOrder,
             @RequestParam(defaultValue = "relevance")
@@ -1005,7 +1006,7 @@ public class RegistryAPI {
             var json = QueryResultJson.error(negativeOffsetMessage());
             return new ResponseEntity<>(json, HttpStatus.BAD_REQUEST);
         }
-        
+
         var request = new QueryRequest(
                 namespaceName,
                 extensionName,
