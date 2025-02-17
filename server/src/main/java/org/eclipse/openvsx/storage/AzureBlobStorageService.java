@@ -68,7 +68,7 @@ public class AzureBlobStorageService implements IStorageService {
 	public boolean isEnabled() {
 		return !StringUtils.isEmpty(serviceEndpoint);
     }
-    
+
     protected BlobContainerClient getContainerClient() {
         if (containerClient == null) {
             containerClient = new BlobContainerClientBuilder()
@@ -157,8 +157,8 @@ public class AzureBlobStorageService implements IStorageService {
         if (!serviceEndpoint.endsWith("/")) {
             throw new IllegalStateException("The Azure blob service endpoint URL must end with a slash.");
         }
-        return URI.create(serviceEndpoint + blobContainer + "/" + blobName);
-	}
+        return URI.create(serviceEndpoint + blobContainer + "/" + blobName + "?" + sasToken);
+    }
 
     protected String getBlobName(FileResource resource) {
         var extVersion = resource.getExtension();
