@@ -25,6 +25,8 @@ import org.eclipse.openvsx.entities.Namespace;
 import org.eclipse.openvsx.util.FileUtil;
 import org.eclipse.openvsx.util.TempFile;
 import org.eclipse.openvsx.util.UrlUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.util.Pair;
@@ -46,6 +48,8 @@ import static org.eclipse.openvsx.cache.CacheService.GENERATOR_FILES;
 public class AzureBlobStorageService implements IStorageService {
 
     public static final String AZURE_USER_AGENT = "OpenVSX";
+
+    protected final Logger logger = LoggerFactory.getLogger(AzureBlobStorageService.class);
 
     private final FilesCacheKeyGenerator filesCacheKeyGenerator;
 
@@ -157,7 +161,9 @@ public class AzureBlobStorageService implements IStorageService {
         if (!serviceEndpoint.endsWith("/")) {
             throw new IllegalStateException("The Azure blob service endpoint URL must end with a slash.");
         }
-        return URI.create(serviceEndpoint + blobContainer + "/" + blobName + "?" + sasToken);
+        var finalUrl = serviceEndpoint + blobContainer + "/" + blobName + "?" + sasToken;
+        logger.info("Generated Azure Blob URL: {}", finalUrl);
+        return URI.create(finalUrl);
     }
 
     protected String getBlobName(FileResource resource) {
