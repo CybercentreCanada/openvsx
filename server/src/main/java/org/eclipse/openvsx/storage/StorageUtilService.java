@@ -20,8 +20,6 @@ import org.eclipse.openvsx.entities.Namespace;
 import org.eclipse.openvsx.repositories.RepositoryService;
 import org.eclipse.openvsx.search.SearchUtilService;
 import org.eclipse.openvsx.util.TempFile;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.util.Pair;
 import org.springframework.http.CacheControl;
@@ -48,8 +46,6 @@ import static org.eclipse.openvsx.util.UrlUtil.createApiFileUrl;
  */
 @Component
 public class StorageUtilService implements IStorageService {
-
-    protected final Logger logger = LoggerFactory.getLogger(StorageUtilService.class);
 
     private final RepositoryService repositories;
     private final GoogleCloudStorageService googleStorage;
@@ -290,10 +286,8 @@ public class StorageUtilService implements IStorageService {
 
     public ResponseEntity<StreamingResponseBody> getFileResponse(FileResource resource) {
         if (resource.getStorageType().equals(STORAGE_LOCAL)) {
-            logger.info("getFileResponse() local storage");
             return localStorage.getFile(resource);
         } else {
-            logger.info("getFileResponse() not local storage");
             return ResponseEntity.status(HttpStatus.FOUND)
                     .location(getLocation(resource))
                     .cacheControl(CacheControl.maxAge(fileCacheDurationConfig.getCacheDuration()).cachePublic())
