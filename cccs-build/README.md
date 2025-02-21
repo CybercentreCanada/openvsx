@@ -1,2 +1,2 @@
 # hogwarts-openvsx-website
-Dockerfile and instructions from https://github.com/eclipse/openvsx/wiki/Deploying-Open-VSX
+The server and webui images combined with Spring from the server image serving the static files from the webui image.
