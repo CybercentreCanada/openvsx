@@ -77,7 +77,7 @@ public class ElasticSearchService implements ISearchService {
         this.relevanceService = relevanceService;
         this.scheduler = scheduler;
     }
-
+    
     public boolean isEnabled() {
         return enableSearch;
     }
@@ -149,7 +149,7 @@ public class ElasticSearchService implements ISearchService {
                 locked = true;
                 indexOps.create();
             }
-
+            
             // Scan all extensions and create index queries
             var allExtensions = repositories.findAllActiveExtensions();
             if (allExtensions.isEmpty()) {
