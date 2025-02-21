@@ -1,0 +1,79 @@
+trigger:
+  batch: true
+  branches:
+    include:
+    - cccs-main
+
+pool: cybertron-build-pool
+
+variables:
+  containerRegistry: uchimera
+  imageRepository: cccs/openvsx
+  serverImageRepository: cccs/openvsx/server
+  webuiImageRepository: cccs/openvsx/webui
+  buildTimestamp: $[format('{0:yyyyMMddHHmmss}', pipeline.startTime)]
+
+steps:
+  - bash: |
+      BRANCH_NAME=`echo "$SYSTEM_PULLREQUEST_SOURCEBRANCH $BUILD_SOURCEBRANCH" | sed -r 's/^\s*(refs\/heads\/)?(\S*).*$/\2/' | sed 's/\//_/g'`
+      echo "##vso[task.setvariable variable=BRANCH_NAME]$BRANCH_NAME"
+    displayName: Parse Source Control Branch Name
+  - task: Docker@2
+    displayName: Login to $(containerRegistry)
+    inputs:
+      command: login
+      containerRegistry: $(containerRegistry)
+  - task: Docker@2
+    displayName: Build and push server image
+    env:
+      DOCKER_BUILDKIT: 1
+      BUILDKIT_PROGRESS: plain
+    inputs:
+      command: 'buildAndPush'
+      repository: $(serverImageRepository)
+      dockerfile: 'server/Dockerfile'
+      buildContext: 'server/'
+      tags: |
+        $(BRANCH_NAME)
+        $(BRANCH_NAME)_$(buildTimestamp)_b$(Build.BuildId)
+  - task: Docker@2
+    displayName: Build and push WebUI Image
+    env:
+      DOCKER_BUILDKIT: 1
+      BUILDKIT_PROGRESS: plain
+    inputs:
+      command: 'buildAndPush'
+      repository: $(webuiImageRepository)
+      dockerfile: 'webui/Dockerfile'
+      buildContext: 'webui/'
+      tags: |
+        $(BRANCH_NAME)
+        $(BRANCH_NAME)_$(buildTimestamp)_b$(Build.BuildId)
+  - task: Docker@2
+    displayName: Build complete image
+    env:
+      DOCKER_BUILDKIT: 1
+      BUILDKIT_PROGRESS: plain
+    inputs:
+      command: 'build'
+      repository: $(imageRepository)
+      dockerfile: 'cccs-build/Dockerfile'
+      buildContext: '.'
+      tags: |
+        $(BRANCH_NAME)
+        $(BRANCH_NAME)_$(buildTimestamp)_b$(Build.BuildId)
+      arguments: --build-arg OPENVSX_IMAGES_TAG=$(BRANCH_NAME)_$(buildTimestamp)_b$(Build.BuildId)
+  - task: Docker@2
+    displayName: Tag and push complete image to $(containerRegistry)
+    inputs:
+      command: 'push'
+      repository: $(imageRepository)
+      tags: |
+        $(BRANCH_NAME)
+        $(BRANCH_NAME)_$(buildTimestamp)_b$(Build.BuildId)
+  - task: Docker@2
+    displayName: Logout of $(containerRegistry)
+    inputs:
+      command: logout
+      containerRegistry: $(containerRegistry)
+    condition: always()
